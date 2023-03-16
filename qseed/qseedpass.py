@@ -11,7 +11,7 @@ from bqskit.ir.opt.cost.functions.residuals.hilbertschmidt import (
 )
 from bqskit.ir.opt.cost.generator import CostFunctionGenerator
 from bqskit.passes.search.generator import LayerGenerator
-from bqskit.passes.search.generators.multiseed import MultiSeedLayerGenerator
+from qseed.multiseed import MultiSeedLayerGenerator
 from bqskit.passes.search.generators.simple import SimpleLayerGenerator
 from bqskit.passes.search.heuristic import HeuristicFunction
 from bqskit.passes.search.heuristics.astar import AStarHeuristic
