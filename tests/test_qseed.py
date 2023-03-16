@@ -3,7 +3,8 @@ from __future__ import annotations
 import numpy as np
 from bqskit import MachineModel
 import pickle
-
+from bqskit.compiler.compiler import Compiler
+from bqskit.compiler.task import CompilationTask
 from bqskit.ir.circuit import Circuit
 from bqskit.ir.location import CircuitLocation
 from bqskit.ir.operation import Operation
@@ -21,19 +22,21 @@ from random import randint, seed
 
 def get_unit() -> Circuit:
     unit = Circuit(2)
-    unit.append_gate(CNOTGate(),[0,1])
-    unit.append_gate(U3Gate(),[0])
-    unit.append_gate(U3Gate(),[1])
+    unit.append_gate(CNOTGate(), [0, 1])
+    unit.append_gate(U3Gate(), [0])
+    unit.append_gate(U3Gate(), [1])
     return unit
 
-def init_circuit(num_qudits : int) -> Circuit:
+
+def init_circuit(num_qudits: int) -> Circuit:
     circuit = Circuit(num_qudits)
     for q in range(num_qudits):
-        circuit.append_gate(U3Gate(),[q])
+        circuit.append_gate(U3Gate(), [q])
     return circuit
 
-def toffoli_unitary() -> np.array:
-    return np.array([
+
+def toffoli_unitary() -> UnitaryMatrix:
+    return UnitaryMatrix([
         [1, 0, 0, 0, 0, 0, 0, 0],
         [0, 1, 0, 0, 0, 0, 0, 0],
         [0, 0, 1, 0, 0, 0, 0, 0],
@@ -44,31 +47,30 @@ def toffoli_unitary() -> np.array:
         [0, 0, 0, 0, 0, 0, 1, 0],
     ])
 
-def swap_unitaries() -> tuple[np.array]:
-    swap1 = np.array([
+
+def swap_unitaries() -> tuple[UnitaryMatrix, UnitaryMatrix]:
+    swap1 = UnitaryMatrix([
         [1, 0, 0, 0],
         [0, 1, 0, 0],
         [0, 0, 0, 1],
         [0, 0, 1, 0],
     ])
-    swap2 = np.array([
+    swap2 = UnitaryMatrix([
         [1, 0, 0, 0],
         [0, 0, 0, 1],
         [0, 0, 1, 0],
         [0, 1, 0, 0],
     ])
     return (swap1, swap2)
-    
 
 
 class TestQSeed:
-    
     def test_random_2_qubit(self) -> None:
         utry = UnitaryMatrix.random(2)
         target = Circuit.from_unitary(utry)
         unit = get_unit()
         template = init_circuit(2)
-        template.append_circuit(unit,[0,1])
+        template.append_circuit(unit, [0, 1])
 
         qseed = QSeedSynthesisPass(template)
         qseed.run(target)
@@ -79,9 +81,9 @@ class TestQSeed:
         unit = get_unit()
 
         template = Circuit(2)
-        template.append_circuit(unit, [0,1])
-        template.append_circuit(unit, [0,1])
-        template.append_circuit(unit, [0,1])
+        template.append_circuit(unit, [0, 1])
+        template.append_circuit(unit, [0, 1])
+        template.append_circuit(unit, [0, 1])
 
         qseed = QSeedSynthesisPass(template)
 
@@ -93,16 +95,16 @@ class TestQSeed:
             print(f'{time() - start_time}')
             dist = target.get_unitary().get_distance_from(utry)
             assert dist <= 1e-5
-    
+
     def test_option_swap(self) -> None:
         print('\noptional seeds')
         unit = get_unit()
         template = init_circuit(2)
         qseed = QSeedSynthesisPass(template)
 
-        template.append_circuit(unit, [0,1])
-        template.append_circuit(unit, [1,0])
-        template.append_circuit(unit, [0,1])
+        template.append_circuit(unit, [0, 1])
+        template.append_circuit(unit, [1, 0])
+        template.append_circuit(unit, [0, 1])
 
         data = {'seeds': [template]}
         utry, _ = swap_unitaries()
@@ -113,16 +115,16 @@ class TestQSeed:
         print(f'{time() - start_time}')
         dist = target.get_unitary().get_distance_from(utry)
         assert dist <= 1e-5
-    
+
     def test_over_expressive_swap(self) -> None:
         print('\nover expressive swap')
         unit = get_unit()
 
         template = Circuit(2)
-        template.append_circuit(unit, [0,1])
-        template.append_circuit(unit, [0,1])
-        template.append_circuit(unit, [0,1])
-        template.append_circuit(unit, [0,1])
+        template.append_circuit(unit, [0, 1])
+        template.append_circuit(unit, [0, 1])
+        template.append_circuit(unit, [0, 1])
+        template.append_circuit(unit, [0, 1])
 
         qseed = QSeedSynthesisPass(template)
 
@@ -139,8 +141,8 @@ class TestQSeed:
         unit = get_unit()
 
         template = Circuit(2)
-        template.append_circuit(unit, [0,1])
-        template.append_circuit(unit, [0,1])
+        template.append_circuit(unit, [0, 1])
+        template.append_circuit(unit, [0, 1])
 
         qseed = QSeedSynthesisPass(template)
 
@@ -153,16 +155,16 @@ class TestQSeed:
             assert dist <= 1e-5
 
     def test_qseed_toffoli(self) -> None:
-        print("\nqseed")
+        print('\nqseed')
         unit = get_unit()
         template = init_circuit(3)
-        template.append_circuit(unit, [0,1])
-        template.append_circuit(unit, [1,2])
-        template.append_circuit(unit, [1,2])
-        template.append_circuit(unit, [0,1])
-        template.append_circuit(unit, [1,2])
-        template.append_circuit(unit, [0,2])
-        template.append_circuit(unit, [1,2])
+        template.append_circuit(unit, [0, 1])
+        template.append_circuit(unit, [1, 2])
+        template.append_circuit(unit, [1, 2])
+        template.append_circuit(unit, [0, 1])
+        template.append_circuit(unit, [1, 2])
+        template.append_circuit(unit, [0, 2])
+        template.append_circuit(unit, [1, 2])
 
         toffoli = toffoli_unitary()
         qseed = QSeedSynthesisPass(template)
@@ -175,22 +177,22 @@ class TestQSeed:
         print(target.gate_counts)
         dist = target.get_unitary().get_distance_from(toffoli)
         assert dist <= 1e-5
-    
+
     def test_over_expressive_template(self) -> None:
-        print("\nover expressive")
+        print('\nover expressive')
         unit = get_unit()
 
         template = init_circuit(3)
-        template.append_circuit(unit, [0,1])
-        template.append_circuit(unit, [1,2])
-        template.append_circuit(unit, [1,2])
-        template.append_circuit(unit, [0,1])
-        template.append_circuit(unit, [1,2])
-        template.append_circuit(unit, [0,2])
-        template.append_circuit(unit, [1,2])
-        template.append_circuit(unit, [1,2])
-        template.append_circuit(unit, [0,2])
-        template.append_circuit(unit, [1,2])
+        template.append_circuit(unit, [0, 1])
+        template.append_circuit(unit, [1, 2])
+        template.append_circuit(unit, [1, 2])
+        template.append_circuit(unit, [0, 1])
+        template.append_circuit(unit, [1, 2])
+        template.append_circuit(unit, [0, 2])
+        template.append_circuit(unit, [1, 2])
+        template.append_circuit(unit, [1, 2])
+        template.append_circuit(unit, [0, 2])
+        template.append_circuit(unit, [1, 2])
 
         toffoli = toffoli_unitary()
 
@@ -202,16 +204,16 @@ class TestQSeed:
         print(target.gate_counts)
         dist = target.get_unitary().get_distance_from(toffoli)
         assert dist <= 1e-5
-    
+
     def test_multiple_randoms(self) -> None:
         print('\nmulti-seeded')
         unit = get_unit()
         template1 = init_circuit(2)
         template2 = init_circuit(2)
-        template1.append_circuit(unit,[0,1])
-        template2.append_circuit(unit,[0,1])
-        template2.append_circuit(unit,[0,1])
-        template2.append_circuit(unit,[0,1])
+        template1.append_circuit(unit, [0, 1])
+        template2.append_circuit(unit, [0, 1])
+        template2.append_circuit(unit, [0, 1])
+        template2.append_circuit(unit, [0, 1])
 
         templates = [template1, template2]
 
@@ -333,3 +335,4 @@ class TestQSeed:
                 assert seeds == templates_c
             if i == 3:
                 assert seeds == templates_d
+
