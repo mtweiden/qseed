@@ -1,10 +1,7 @@
 from __future__ import annotations
 
-import numpy as np
 from bqskit import MachineModel
 import pickle
-from bqskit.compiler.compiler import Compiler
-from bqskit.compiler.task import CompilationTask
 from bqskit.ir.circuit import Circuit
 from bqskit.ir.location import CircuitLocation
 from bqskit.ir.operation import Operation
@@ -18,7 +15,6 @@ from bqskit.ir.gates import CNOTGate
 from bqskit.ir.gates import U3Gate
 from qseed.handler import HandlerPass
 from timeit import default_timer as time
-from random import randint, seed
 
 def get_unit() -> Circuit:
     unit = Circuit(2)
@@ -27,13 +23,11 @@ def get_unit() -> Circuit:
     unit.append_gate(U3Gate(), [1])
     return unit
 
-
 def init_circuit(num_qudits: int) -> Circuit:
     circuit = Circuit(num_qudits)
     for q in range(num_qudits):
         circuit.append_gate(U3Gate(), [q])
     return circuit
-
 
 def toffoli_unitary() -> UnitaryMatrix:
     return UnitaryMatrix([
@@ -46,7 +40,6 @@ def toffoli_unitary() -> UnitaryMatrix:
         [0, 0, 0, 0, 0, 0, 0, 1],
         [0, 0, 0, 0, 0, 0, 1, 0],
     ])
-
 
 def swap_unitaries() -> tuple[UnitaryMatrix, UnitaryMatrix]:
     swap1 = UnitaryMatrix([
