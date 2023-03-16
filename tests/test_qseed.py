@@ -1,19 +1,24 @@
 from __future__ import annotations
 
-from random import randint
-from random import seed
-from timeit import default_timer as time
-
+import numpy as np
+from bqskit import MachineModel
+import pickle
 from bqskit.compiler.compiler import Compiler
 from bqskit.compiler.task import CompilationTask
 from bqskit.ir.circuit import Circuit
+from bqskit.ir.location import CircuitLocation
+from bqskit.ir.operation import Operation
+from bqskit.ir.gates.circuitgate import CircuitGate
+from bqskit.qis.graph import CouplingGraph
+from bqskit.passes.processing.scan import ScanningGateRemovalPass
+from bqskit.passes.partitioning.quick import QuickPartitioner
+from qseed import QSeedSynthesisPass
+from bqskit.qis import UnitaryMatrix
 from bqskit.ir.gates import CNOTGate
 from bqskit.ir.gates import U3Gate
-from bqskit.passes.processing.scan import ScanningGateRemovalPass
-from bqskit.passes.synthesis.qsearch import QSearchSynthesisPass
-from bqskit.passes.synthesis.qseed import QSeedSynthesisPass
-from bqskit.qis.unitary import UnitaryMatrix
-
+from qseed.handler import HandlerPass
+from timeit import default_timer as time
+from random import randint, seed
 
 def get_unit() -> Circuit:
     unit = Circuit(2)
@@ -222,93 +227,112 @@ class TestQSeed:
         dist = target.get_unitary().get_distance_from(utry)
         assert dist <= 1e-5
 
-    # def test_multiple_seeds(self) -> None:
-    #    print('\nback tracking')
-    #    unit = get_unit()
+    def test_gate_count(self) -> None:
+        circuit = init_circuit(3)
+        circuit.append_circuit(get_unit(), [0,1])
+        circuit.append_circuit(get_unit(), [0,1])
+        circuit.append_circuit(get_unit(), [0,2])
+        circuit.append_circuit(get_unit(), [0,2])
+        circuit.append_circuit(get_unit(), [1,2])
+        circuit.append_circuit(get_unit(), [1,2])
 
-    #    seed(12345)
-    #    target = init_circuit(3)
-    #    num_units = 5
-    #    locations = [[0,1] if i % 2 == 0 else [1,2] for i in range(num_units)]
-    #    for location in locations:
-    #        params = 2*np.pi*np.random.random(U3Gate().num_params*2)
-    #        unit.set_params(params)
-    #        target.append_circuit(unit, location)
-    #
-    #    utry = target.get_unitary()
-    #
-    #    template1 : Circuit = init_circuit(3)
-    #    template2 : Circuit = init_circuit(3)
-    #
-    #    template1.append_circuit(unit, [0,1])
-    #    template1.append_circuit(unit, [0,1])
-    #    template1.append_circuit(unit, [0,1])
+        handler = HandlerPass()
+        assert handler._count_cnots(circuit) == 6
 
-    #    template2.append_circuit(unit, [1,2])
-    #    template2.append_circuit(unit, [1,2])
-    #    template2.append_circuit(unit, [1,2])
+    def test_sub_machine(self) -> None:
+        circuit = init_circuit(3)
+        circuit.append_circuit(get_unit(), [0,1])
+        circuit.append_circuit(get_unit(), [1,2])
 
-    #    qseed = QSeedSynthesisPass([template1, template2])
-    #
-    #    start_time = time()
-    #    qseed.run(target)
-    #    print(f'{time()-start_time}')
-    #    dist = target.get_unitary().get_distance_from(utry)
-    #    assert dist <= 1e-5
+        model = MachineModel(10)
+        complete = model.coupling_graph.all_to_all(10)
+        linear   = model.coupling_graph.linear(10)
+        complete_model = MachineModel(10, complete)
+        linear_model = MachineModel(10, linear)
 
-    # def test_under_expressive_template(self) -> None:
-    #    print("\nunder expressive")
-    #    unit = get_unit()
+        location = CircuitLocation([2,3,4])
 
-    #    template = init_circuit(3)
-    #    template.append_circuit(unit, [0,1])
-    #    template.append_circuit(unit, [1,2])
-    #    template.append_circuit(unit, [1,2])
-    #    template.append_circuit(unit, [0,1])
+        handler = HandlerPass()
+        complete_submachine = handler._sub_machine(complete_model, location)
+        linear_submachine = handler._sub_machine(linear_model, location)
+        complete_sub = CouplingGraph([(0,1),(1,2),(0,2)], 3)
+        linear_sub   = CouplingGraph([(0,1),(1,2),], 3)
 
-    #    toffoli = toffoli_unitary()
+        for edge in complete_submachine.coupling_graph:
+            assert edge in complete_sub 
+        for edge in complete_sub:
+            assert edge in complete_submachine.coupling_graph
 
-    #    qseed = QSeedSynthesisPass(template)
-    #    target = Circuit.from_unitary(toffoli)
-    #    start_time = time()
-    #    qseed.run(target)
-    #    print(f'{time()-start_time}')
-    #    dist = target.get_unitary().get_distance_from(toffoli)
-    #    assert dist <= 1e-5
+        for edge in linear_submachine.coupling_graph:
+            assert edge in linear_sub 
+        for edge in linear_sub:
+            assert edge in linear_submachine.coupling_graph
 
-    def test_random_init_toffoli(self) -> None:
-        print('\nrandom seed')
-        seed(12345)
-        unit = get_unit()
-        template = init_circuit(3)
-        num_random_edges = 5
-        graph_edges = [(0, 1), (1, 2), (0, 2)]
-        units_to_insert = [randint(0, 2) for _ in range(num_random_edges)]
-        for edge_num in units_to_insert:
-            template.append_circuit(unit, graph_edges[edge_num])
+    def test_extract_subtopology(self) -> None:
+        handler = HandlerPass()
+        circuit = init_circuit(3)
+        assert handler._extract_subtopology(circuit) == -1
 
-        qseed = QSeedSynthesisPass(template)
+        circuit.append_circuit(get_unit(), [0,2])
+        circuit.append_circuit(get_unit(), [0,1])
 
-        toffoli = toffoli_unitary()
+        part = QuickPartitioner(3)
+        part.run(circuit)
 
-        target = Circuit.from_unitary(toffoli)
-        start_time = time()
-        qseed.run(target)
-        print(f'{time()-start_time}')
-        print(target.gate_counts)
-        dist = target.get_unitary().get_distance_from(toffoli)
-        assert dist <= 1e-5
+        new_circuit = Circuit(10)
+        new_circuit.append_circuit(circuit, [1,3,4])
+        new_circuit.append_circuit(circuit, [2,6,8])
 
-    def test_qsearch_toffoli(self, compiler: Compiler) -> None:
-        print('\nqsearch')
-        toffoli = toffoli_unitary()
-        qsearch = QSearchSynthesisPass()
+        for op in new_circuit:
+            block = Circuit.from_operation(op)
+            assert handler._extract_subtopology(block) == 1
+    
+    def test_static_recommender(self) -> None:
+        handler = HandlerPass()
+        circ_a = init_circuit(3)
+        circ_a.append_circuit(get_unit(), [0,1])
+        circ_a.append_circuit(get_unit(), [1,2])
+        circ_b = init_circuit(3)
+        circ_b.append_circuit(get_unit(), [0,1])
+        circ_b.append_circuit(get_unit(), [0,2])
+        circ_c = init_circuit(3)
+        circ_c.append_circuit(get_unit(), [0,2])
+        circ_c.append_circuit(get_unit(), [1,2])
+        circ_d = init_circuit(3)
+        circ_d.append_circuit(get_unit(), [0,1])
+        circ_d.append_circuit(get_unit(), [1,2])
+        circ_d.append_circuit(get_unit(), [0,2])
 
-        target = Circuit.from_unitary(toffoli)
-        task = CompilationTask(target, [qsearch])
-        start_time = time()
-        target = compiler.compile(task)
-        print(f'{time()-start_time}')
-        print(target.gate_counts)
-        dist = target.get_unitary().get_distance_from(toffoli)
-        assert dist <= 1e-5
+        op_a = Operation(CircuitGate(circ_a), [0,1,2])
+        op_b = Operation(CircuitGate(circ_b), [2,3,4])
+        op_c = Operation(CircuitGate(circ_c), [0,1,2])
+        op_d = Operation(CircuitGate(circ_d), [2,3,4])
+
+        circuit = Circuit(5)
+        circuit.append(op_a)
+        circuit.append(op_b)
+        circuit.append(op_c)
+        circuit.append(op_d)
+
+        with open('static_seeds/qft_templates_a.pickle','rb') as f:
+            templates_a = pickle.load(f)
+        with open('static_seeds/qft_templates_b.pickle','rb') as f:
+            templates_b = pickle.load(f)
+        with open('static_seeds/qft_templates_c.pickle','rb') as f:
+            templates_c = pickle.load(f)
+        with open('static_seeds/qft_templates_d.pickle','rb') as f:
+            templates_d = pickle.load(f)
+
+        for i,op in enumerate(circuit):
+            block = Circuit.from_operation(op)
+            seeds = handler.seed_recommender(block)
+
+            if i == 0:
+                assert seeds == templates_a
+            if i == 1:
+                assert seeds == templates_b
+            if i == 2:
+                assert seeds == templates_c
+            if i == 3:
+                assert seeds == templates_d
+
