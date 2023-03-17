@@ -4,7 +4,7 @@ from bqskit.compiler import BasePass
 from torch.nn import Module
 from torch import tensor
 from torch import topk
-from encoding import structural_encoding
+from qseed.encoding import structural_encoding
 
 # TODO:
 # - add cuda support

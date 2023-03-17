@@ -46,7 +46,7 @@ def pauli_encoding(circuit : Circuit) -> tensor:
     unitary = circuit.get_unitary().numpy
     canonical_unitary = to_canonical_unitary(unitary)
     H = unitary_log_no_i(canonical_unitary)
-    return tensor(pauli_expansion(H))
+    return tensor(pauli_expansion(H)).float()
 
 def structural_encoding(circuit : Circuit) -> tensor:
     """
@@ -67,5 +67,5 @@ def structural_encoding(circuit : Circuit) -> tensor:
     for op in circuit:
         if op.num_qudits == 2:
             encoded_edges.append(edge_to_int(tuple(op.location)))
-    return tensor(encoded_edges[:16])
+    return tensor(encoded_edges[:16]).float()
 

@@ -4,7 +4,7 @@ from bqskit.compiler import BasePass
 from torch.nn import Module
 from torch import tensor
 from torch import topk
-from encoding import pauli_encoding
+from qseed.encoding import pauli_encoding
 
 # TODO:
 # - add cuda support
@@ -14,6 +14,7 @@ class PauliRecommenderPass(BasePass):
     def __init__(
         self,
         recommender_model : Module,
+        model_state : dict[str,Any],
         template_list : Sequence[Circuit],
         seeds_per_inference : int = 3
     ) -> None:
@@ -24,6 +25,9 @@ class PauliRecommenderPass(BasePass):
         Args:
             recommender_model (torch.nn.Module): Model used to make seed
                 recommendations.
+            
+            model_state (dict[str,Any]): Weights and biases for the input
+                `recommender_model`.
             
             template_list (list[Circuit]): The outputs of `recommender_model`
                 must correspond to template circuits in this list.
@@ -36,7 +40,8 @@ class PauliRecommenderPass(BasePass):
             dimension. Having a mismatch between the template_list and the
             recommender model output will cause errors.
         """
-        self.model = recommender_model
+        self.model = recommender_model.float()
+        self.model.load_state_dict(model_state)
         self.template_list = template_list
         self.seeds_per_inference = seeds_per_inference
     
