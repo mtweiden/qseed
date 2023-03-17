@@ -13,7 +13,7 @@ from bqskit.ir.region import CircuitRegion
 from bqskit.ir.location import CircuitLocation
 from bqskit.ir.point import CircuitPoint
 from bqskit.ir.operation import Operation
-from qseed.qseedpass import QSeedSynthesisPass
+from bqskit.passes import QSearchSynthesisPass
 from timeit import default_timer as time
 from bqskit.ir.gates import CNOTGate, SwapGate, U3Gate
 
@@ -44,7 +44,7 @@ _logger = logging.getLogger(__name__)
 #   - Function that takes in a CircuitGate and returns an integer which
 #     corresponds to the topology that block uses.
 
-class Handler(BasePass):
+class QSearchHandler(BasePass):
     def __init__(
         self,
     ) -> None:
@@ -60,20 +60,12 @@ class Handler(BasePass):
             3: ((0,1),(1,2),(0,2)),
         }
 
-        # NOTE: Only as static strategy is currently supported
-        # NOTE: Only as QFT is currently supported
-        files = ['templates_a', 'templates_b', 'templates_c', 'templates_d']
-        self.static_templates = []
-        for file in files:
-            with open(f'static_seeds/qft_{file}.pickle','rb') as f:
-                self.static_templates.append(pickle.load(f))
-
     def run(self, circuit: Circuit, data: dict[str, Any] = {}) -> None:
         start_time = time()
         start_total_cnots, opt_total_cnots = 0,0
         start_total_u3s, opt_total_u3s = 0,0
         
-        logging.info('QSeed compilation')
+        logging.info('QSearch compilation')
 
         for cycle, op in circuit.operations_with_cycles():
             if op.num_qudits != self.num_qubits:
@@ -82,17 +74,16 @@ class Handler(BasePass):
             block = circuit.from_operation(op)
             block.unfold_all()
             original_cnots, original_u3s = self._count_gates(block)
-            seeds = self.seed_recommender(block, circuit)
 
             # Set up seeds
-            qseed = QSeedSynthesisPass(seeds)
+            qsearch = QSearchSynthesisPass()
             sub_data = {}
             if 'machine_model' in data:
                 model = data['machine_model']
                 sub_data['machine_model'] = self._sub_machine(model, op.location)
             
             # Run seeded synthesis
-            qseed.run(block, sub_data)
+            qsearch.run(block, sub_data)
             opt_cnots, opt_u3s = self._count_gates(block)
 
             # Replace if optimized block is smaller
@@ -136,8 +127,19 @@ class Handler(BasePass):
         topology_code = self._extract_subtopology(block)
         if topology_code not in [0,1,2,3]:
             return [Circuit(self.num_qubits)]
+        
         # NOTE: ONLY QFT IS CURRENTLY SUPPORTED
-        return self.static_templates[topology_code]
+        if topology_code == 0:
+            template_pickle_file = 'qft_templates_a.pickle'
+        elif topology_code == 1:
+            template_pickle_file = 'qft_templates_b.pickle'
+        elif topology_code == 2:
+            template_pickle_file = 'qft_templates_c.pickle'
+        elif topology_code == 3:
+            template_pickle_file = 'qft_templates_d.pickle'
+        
+        with open(f'static_seeds/{template_pickle_file}','rb') as f:
+            return pickle.load(f)
     
     def _count_gates(self, circuit : Circuit) -> int:
         counts = circuit.gate_counts

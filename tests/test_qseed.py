@@ -1,10 +1,7 @@
 from __future__ import annotations
 
-import numpy as np
 from bqskit import MachineModel
 import pickle
-from bqskit.compiler.compiler import Compiler
-from bqskit.compiler.task import CompilationTask
 from bqskit.ir.circuit import Circuit
 from bqskit.ir.location import CircuitLocation
 from bqskit.ir.operation import Operation
@@ -16,9 +13,8 @@ from qseed import QSeedSynthesisPass
 from bqskit.qis import UnitaryMatrix
 from bqskit.ir.gates import CNOTGate
 from bqskit.ir.gates import U3Gate
-from qseed.handler import HandlerPass
+from qseed.handler import Handler
 from timeit import default_timer as time
-from random import randint, seed
 
 def get_unit() -> Circuit:
     unit = Circuit(2)
@@ -27,13 +23,11 @@ def get_unit() -> Circuit:
     unit.append_gate(U3Gate(), [1])
     return unit
 
-
 def init_circuit(num_qudits: int) -> Circuit:
     circuit = Circuit(num_qudits)
     for q in range(num_qudits):
         circuit.append_gate(U3Gate(), [q])
     return circuit
-
 
 def toffoli_unitary() -> UnitaryMatrix:
     return UnitaryMatrix([
@@ -46,7 +40,6 @@ def toffoli_unitary() -> UnitaryMatrix:
         [0, 0, 0, 0, 0, 0, 0, 1],
         [0, 0, 0, 0, 0, 0, 1, 0],
     ])
-
 
 def swap_unitaries() -> tuple[UnitaryMatrix, UnitaryMatrix]:
     swap1 = UnitaryMatrix([
@@ -236,8 +229,8 @@ class TestQSeed:
         circuit.append_circuit(get_unit(), [1,2])
         circuit.append_circuit(get_unit(), [1,2])
 
-        handler = HandlerPass()
-        assert handler._count_cnots(circuit) == 6
+        handler = Handler()
+        assert handler._count_gates(circuit)[0] == 6
 
     def test_sub_machine(self) -> None:
         circuit = init_circuit(3)
@@ -252,7 +245,7 @@ class TestQSeed:
 
         location = CircuitLocation([2,3,4])
 
-        handler = HandlerPass()
+        handler = Handler()
         complete_submachine = handler._sub_machine(complete_model, location)
         linear_submachine = handler._sub_machine(linear_model, location)
         complete_sub = CouplingGraph([(0,1),(1,2),(0,2)], 3)
@@ -269,7 +262,7 @@ class TestQSeed:
             assert edge in linear_submachine.coupling_graph
 
     def test_extract_subtopology(self) -> None:
-        handler = HandlerPass()
+        handler = Handler()
         circuit = init_circuit(3)
         assert handler._extract_subtopology(circuit) == -1
 
@@ -288,7 +281,7 @@ class TestQSeed:
             assert handler._extract_subtopology(block) == 1
     
     def test_static_recommender(self) -> None:
-        handler = HandlerPass()
+        handler = Handler()
         circ_a = init_circuit(3)
         circ_a.append_circuit(get_unit(), [0,1])
         circ_a.append_circuit(get_unit(), [1,2])
