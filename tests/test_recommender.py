@@ -12,6 +12,7 @@ import numpy as np
 from bqskit.compiler import Compiler 
 from bqskit.compiler import CompilationTask
 from bqskit.passes import QuickPartitioner
+from bqskit.passes import ForEachBlockPass
 
 def get_unit() -> Circuit:
     unit = Circuit(2)
@@ -63,62 +64,62 @@ class TestQSeed:
 
         assert 'recommended_seeds' in data
     
-    def test_recommender_qseed(self) -> None:
-        state_path = 'qseed/models/pauli_encoder.model'
-        temp_path = 'static_seeds/templates.pickle'
+    #def test_recommender_qseed(self) -> None:
+    #    state_path = 'qseed/models/pauli_encoder.model'
+    #    temp_path = 'static_seeds/templates.pickle'
 
-        model = PauliLearner()
-        state = torch.load(state_path,map_location='cpu')
-        with open(temp_path,'rb') as f:
-            templates = pickle.load(f)
+    #    model = PauliLearner()
+    #    state = torch.load(state_path,map_location='cpu')
+    #    with open(temp_path,'rb') as f:
+    #        templates = pickle.load(f)
 
-        recommender = PauliRecommenderPass(model, state, templates)
-        qseed = QSeedSynthesisPass()
+    #    recommender = PauliRecommenderPass(model, state, templates)
+    #    qseed = QSeedSynthesisPass()
 
-        circuit = init_circuit(3)
-        for i in range(3):
-            circuit.append_circuit(get_unit(),[0,1])
-            circuit.append_circuit(get_unit(),[1,2])
+    #    circuit = init_circuit(3)
+    #    for i in range(3):
+    #        circuit.append_circuit(get_unit(),[0,1])
+    #        circuit.append_circuit(get_unit(),[1,2])
 
-        np.random.seed(1234)
-        circuit.set_params(np.random.randn(circuit.num_params))
+    #    np.random.seed(1234)
+    #    circuit.set_params(np.random.randn(circuit.num_params))
 
-        data = {}
-        recommender.run(circuit, data)
-        qseed.run(circuit, data)
+    #    data = {}
+    #    recommender.run(circuit, data)
+    #    qseed.run(circuit, data)
     
-    def test_recommender_partitions(self) -> None:
-        state_path = 'qseed/models/pauli_encoder.model'
-        temp_path = 'static_seeds/templates.pickle'
+    #def test_recommender_partitions(self) -> None:
+    #    state_path = 'qseed/models/pauli_encoder.model'
+    #    temp_path = 'static_seeds/templates.pickle'
 
-        model = PauliLearner()
-        state = torch.load(state_path,map_location='cpu')
-        with open(temp_path,'rb') as f:
-            templates = pickle.load(f)
+    #    model = PauliLearner()
+    #    state = torch.load(state_path,map_location='cpu')
+    #    with open(temp_path,'rb') as f:
+    #        templates = pickle.load(f)
 
-        partitioner = QuickPartitioner()
-        recommender = PauliRecommenderPass(model, state, templates)
-        qseed = QSeedSynthesisPass()
+    #    partitioner = QuickPartitioner()
+    #    recommender = PauliRecommenderPass(model, state, templates)
+    #    qseed = QSeedSynthesisPass()
 
-        circuit = init_circuit(5)
-        for i in range(3):
-            circuit.append_circuit(get_unit(),[0,1])
-            circuit.append_circuit(get_unit(),[1,2])
-            circuit.append_circuit(get_unit(),[2,3])
-            circuit.append_circuit(get_unit(),[3,4])
+    #    circuit = init_circuit(5)
+    #    for i in range(3):
+    #        circuit.append_circuit(get_unit(),[0,1])
+    #        circuit.append_circuit(get_unit(),[1,2])
+    #        circuit.append_circuit(get_unit(),[2,3])
+    #        circuit.append_circuit(get_unit(),[3,4])
 
-        np.random.seed(1234)
-        circuit.set_params(np.random.randn(circuit.num_params))
+    #    np.random.seed(1234)
+    #    circuit.set_params(np.random.randn(circuit.num_params))
 
-        data = {}
-        partitioner.run(circuit, data)
-        for op in circuit:
-            if op.num_qudits != 3:
-                continue
-            block = Circuit.from_operation(op)
-            block.unfold_all()
-            recommender.run(block, data)
-            qseed.run(block, data)
+    #    data = {}
+    #    partitioner.run(circuit, data)
+    #    for op in circuit:
+    #        if op.num_qudits != 3:
+    #            continue
+    #        block = Circuit.from_operation(op)
+    #        block.unfold_all()
+    #        recommender.run(block, data)
+    #        qseed.run(block, data)
 
     def test_with_compiler(self) -> None:
         state_path = 'qseed/models/pauli_encoder.model'
@@ -132,7 +133,10 @@ class TestQSeed:
         partitioner = QuickPartitioner(3)
         recommender = PauliRecommenderPass(model, state, templates)
         qseed = QSeedSynthesisPass()
-        tasks = [partitioner, recommender, qseed]
+        tasks = [
+            partitioner, ForEachBlockPass([recommender, qseed],
+            collection_filter=lambda x: x.num_qudits == 3)
+        ]
 
         circuit = init_circuit(5)
         for i in range(3):

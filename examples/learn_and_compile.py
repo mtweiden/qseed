@@ -6,6 +6,7 @@ import logging
 
 from bqskit import Circuit
 from bqskit.passes import QuickPartitioner
+from bqskit.passes import ScanningGateRemovalPass
 from bqskit.ir.gates import CNOTGate, U3Gate, SwapGate
 from timeit import default_timer
 
@@ -34,6 +35,7 @@ if __name__ == '__main__':
     partitioner = QuickPartitioner()
     recommender = PauliRecommenderPass(model, state, templates)
     qseed = QSeedSynthesisPass()
+    remover = ScanningGateRemovalPass()
 
     circuit = Circuit.from_file('examples/qasm/qft_20.qasm')
     new_circuit = Circuit(circuit.num_qudits)
@@ -54,6 +56,7 @@ if __name__ == '__main__':
         old_cnots, old_u3s = count_gates(block)
         recommender.run(block, data)
         qseed.run(block, data)
+        remover.run(block, data)
         new_cnots, new_u3s = count_gates(block)
 
         if old_cnots < new_cnots:
