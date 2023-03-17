@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 from typing import Sequence
+import logging
 
 from bqskit.compiler.basepass import BasePass
 from bqskit.ir.circuit import Circuit
@@ -18,6 +19,7 @@ from bqskit.passes.search.heuristics.astar import AStarHeuristic
 from bqskit.passes.synthesis.qsearch import QSearchSynthesisPass
 from bqskit.qis.unitary.unitarymatrix import UnitaryMatrix
 
+_logger = logging.getLogger(__name__)
 
 class QSeedSynthesisPass(BasePass):
     """
@@ -29,7 +31,7 @@ class QSeedSynthesisPass(BasePass):
 
     def __init__(
         self,
-        seed_circuits: Circuit | Sequence[Circuit],
+        seed_circuits: Circuit | Sequence[Circuit] | None = None, 
         forward_generator: LayerGenerator = SimpleLayerGenerator(),
         back_step_size: int = 1,
         heuristic_function: HeuristicFunction = AStarHeuristic(),
@@ -44,8 +46,8 @@ class QSeedSynthesisPass(BasePass):
         The constructor for the QSeedSynthesisPass.
 
         Args:
-            seed_circuits (Circuit | Sequence[Circuit]): A number of circuits
-                from which synthesis will be started.
+            seed_circuits (Circuit | Sequence[Circuit] | None): A number of 
+                circuits from which synthesis will be started. (Default: None)
 
             forward_generator (LayerGenerator): Defines how synthesis will
                 proceed when adding new gates. (Default: SimpleLayerGenerator)
@@ -85,9 +87,13 @@ class QSeedSynthesisPass(BasePass):
         Raises:
         """
         # Seeded synthesis parameters
-        self.seed_circuits = seed_circuits if isinstance(
-            seed_circuits, Sequence,
-        ) else [seed_circuits]
+        if seed_circuits is None:
+            self.seed_circuits = None
+        else:
+            self.seed_circuits = seed_circuits if isinstance(
+                seed_circuits, Sequence,
+            ) else [seed_circuits]
+
         self.back_step_size = back_step_size
         self.forward_generator = forward_generator
         self.back_step_size = back_step_size
@@ -100,6 +106,9 @@ class QSeedSynthesisPass(BasePass):
         self.store_partial_solutions = store_partial_solutions
         self.partials_per_depth = partials_per_depth
         self.instantiate_options = instantiate_options
+
+    def _check_size(self, utry: UnitaryMatrix, seeds : list[Circuit]) -> bool:
+        return utry.num_qudits == seeds[0].num_qudits
 
     def synthesize(self, utry: UnitaryMatrix, data: dict[str, Any]) -> Circuit:
         """
@@ -116,15 +125,37 @@ class QSeedSynthesisPass(BasePass):
         Note:
             This function should be self-contained and have no side effects.
         """
+        # Seeds from recommender pass
         if 'recommended_seeds' in data:
-            seeds = data['recommended_seeds'] if isinstance(
-                    data['recommended_seeds'], Sequence,
-                ) else [data['recommended_seeds']]
+            if self._check_size(utry, data['recommended_seeds'][0]):
+                seeds = data['recommended_seeds'].pop(0)
+            else:
+                raise RuntimeError(
+                    'Recommended seeds are a different size than the target.'
+                )
+        # Manually entered seeds
         elif 'seeds' in data:
-            seeds = data['seeds'] if isinstance(data['seeds'], Sequence) else \
-                [data['seeds']]
+            if self._check_size(utry, data['seeds']):
+                seeds = data['seeds'] if isinstance(data['seeds'], Sequence) \
+                    else [data['seeds']]
+            else:
+                raise RuntimeError(
+                    'Manually entered seeds are a different size than the '
+                    'target.'
+                )
+        # Default seeds set at construction time
         else:
-            seeds = self.seed_circuits
+            if self._check_size(utry, self.seed_circuits):
+                seeds = self.seed_circuits
+            else:
+                raise RuntimeError(
+                    'Default seeds are a different size than the target.'
+                )
+        
+        if seeds is None:
+            raise RuntimeError(
+                'No seeds at contructor time or in `data[seeds]`.'
+            )
 
         layer_generator = MultiSeedLayerGenerator(
             seed_circuits=seeds,
