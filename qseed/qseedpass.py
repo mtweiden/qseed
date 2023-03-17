@@ -89,11 +89,8 @@ class QSeedSynthesisPass(BasePass):
             seed_circuits, Sequence,
         ) else [seed_circuits]
         self.back_step_size = back_step_size
-        self.layer_generator = MultiSeedLayerGenerator(
-            self.seed_circuits,
-            forward_generator=forward_generator,
-            back_step_size=back_step_size,
-        )
+        self.forward_generator = forward_generator
+        self.back_step_size = back_step_size
 
         # Regular QSearch parameters
         self.heuristic_function = heuristic_function
@@ -119,9 +116,25 @@ class QSeedSynthesisPass(BasePass):
         Note:
             This function should be self-contained and have no side effects.
         """
+        if 'recommended_seeds' in data:
+            seeds = data['recommended_seeds'] if isinstance(
+                    data['recommended_seeds'], Sequence,
+                ) else [data['recommended_seeds']]
+        elif 'seeds' in data:
+            seeds = data['seeds'] if isinstance(data['seeds'], Sequence) else \
+                [data['seeds']]
+        else:
+            seeds = self.seed_circuits
+
+        layer_generator = MultiSeedLayerGenerator(
+            seed_circuits=seeds,
+            forward_generator=self.forward_generator,
+            back_step_size=self.back_step_size,
+        )
+
         seeded_synth = QSearchSynthesisPass(
+            layer_generator=layer_generator,
             heuristic_function=self.heuristic_function,
-            layer_generator=self.layer_generator,
             success_threshold=self.success_threshold,
             cost=self.cost,
             max_layer=self.max_layer,
