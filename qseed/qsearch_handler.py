@@ -4,6 +4,8 @@ from __future__ import annotations
 import logging
 import pickle
 from typing import Any, Sequence
+
+import numpy as np
 from bqskit.compiler.basepass import BasePass
 from bqskit.ir.gates.circuitgate import CircuitGate
 from bqskit.passes.control.foreach import ForEachBlockPass
@@ -64,6 +66,7 @@ class QSearchHandler(BasePass):
         start_time = time()
         start_total_cnots, opt_total_cnots = 0,0
         start_total_u3s, opt_total_u3s = 0,0
+        instantiation_calls = []
         
         logging.info('QSearch compilation')
 
@@ -76,8 +79,8 @@ class QSearchHandler(BasePass):
             original_cnots, original_u3s = self._count_gates(block)
 
             # Set up seeds
-            qsearch = QSearchSynthesisPass()
-            sub_data = {}
+            qsearch = QSearchSynthesisPass(store_instantiation_calls=True)
+            sub_data = {'something':0}
             if 'machine_model' in data:
                 model = data['machine_model']
                 sub_data['machine_model'] = self._sub_machine(model, op.location)
@@ -94,6 +97,8 @@ class QSearchHandler(BasePass):
                 circuit.replace((cycle, op.location[0]), block_op)
             else:
                 opt_cnots, opt_u3s = original_cnots, original_u3s
+            
+            instantiation_calls.extend(sub_data['num_instantiation_calls'])
 
             start_total_cnots += original_cnots
             opt_total_cnots   += opt_cnots
@@ -103,6 +108,8 @@ class QSearchHandler(BasePass):
         start_stats = start_time, start_total_cnots, start_total_u3s
         stop_stats = time(), opt_total_cnots, opt_total_u3s
         self.record_stats(start_stats, stop_stats)
+        avg_inst = np.mean(instantiation_calls)
+        _logger.info(f'Average instantiation calls: {avg_inst}')
     
     def seed_recommender(
         self, 

@@ -21,6 +21,8 @@ _logger = logging.getLogger(__name__)
 
 # WidthPredicate to filter out 2 qubit blocks
 
+
+
 # NOTES
 # Inputs:
 #   - quantum circuit (if mapped, then to mesh topology)

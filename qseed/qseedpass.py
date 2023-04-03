@@ -172,13 +172,11 @@ class QSeedSynthesisPass(BasePass):
             store_partial_solutions=self.store_partial_solutions,
             partials_per_depth=self.partials_per_depth,
             instantiate_options=self.instantiate_options,
+            store_instantiation_calls=True
         )
         return seeded_synth.synthesize(utry, data)
 
     def run(self, circuit: Circuit, data: dict[str, Any] = {}) -> None:
         """Perform the pass's operation, see :class:`BasePass` for more."""
-        if len(data) == 0:
-            data = dict()
-
         target_utry = self.get_target(circuit, data)
         circuit.become(self.synthesize(target_utry, data))

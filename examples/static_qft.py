@@ -10,13 +10,16 @@ import logging
 
 if __name__ == '__main__':
 
-    logging.basicConfig(filename='examples/logs/qft_20.log',level=logging.INFO)
+    #file = 'tfim_20'
+    file = 'qft_20'
+    logging.basicConfig(filename=f'examples/logs/{file}.log',level=logging.INFO)
 
     # Input a mapped quantum circuit
-    circuit = Circuit.from_file('examples/qasm/qft_20.qasm')
+    circuit = Circuit.from_file(f'examples/qasm/{file}.qasm')
     x = int(np.sqrt(circuit.num_qudits))
-    machine_model = MachineModel(circuit.num_qudits, CouplingGraph.grid(x,x))
-    data = {'machine_model': machine_model}
+    #machine_model = MachineModel(circuit.num_qudits, CouplingGraph.grid(x,x))
+    #data = {'machine_model': machine_model}
+    data = {}
 
     qseed_circuit = circuit.copy()
     qsearch_circuit = circuit.copy()
@@ -24,9 +27,9 @@ if __name__ == '__main__':
     partitioner.run(qseed_circuit, data)
     partitioner.run(qsearch_circuit, data)
 
-    # Run QSeed
-    handler = Handler()
-    handler.run(qseed_circuit, data)
+    ## Run QSeed
+    #handler = Handler()
+    #handler.run(qseed_circuit, data)
 
     # Run QSearch
     #circuit.save('examples/qasm/opt-qft_20.qasm')
