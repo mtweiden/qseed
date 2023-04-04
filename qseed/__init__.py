@@ -3,3 +3,4 @@ from qseed.handler import Handler
 from qseed.qsearch_handler import QSearchHandler
 from qseed.pauli_recommender import PauliRecommenderPass
 from qseed.structure_recommender import StructureRecommenderPass
+from qseed.recommender import TopologyAwareRecommenderPass

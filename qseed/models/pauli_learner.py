@@ -1,6 +1,6 @@
 """Learn circuit to template mapping given Pauli vectors."""
 import torch.nn as nn
-from learning.pauli_encoder import PauliEncoder
+from qseed.models.pauli_encoder import PauliEncoder
 
 class PauliLearner(nn.Module):
 	def __init__(self, num_qubits : int = 3):
@@ -13,7 +13,7 @@ class PauliLearner(nn.Module):
 		self.pauli_len = 4 ** num_qubits
 		self.dropout_p = 0.4
 
-		self.num_templates = 1100
+		self.num_templates = 1199
 
 		# Encoder
 		self.encoder = PauliEncoder(self.num_qubits)

@@ -5,6 +5,7 @@ import logging
 from typing import Any
 from typing import Sequence
 
+from bqskit.compiler.passdata import PassData
 from bqskit.compiler.machine import MachineModel
 from bqskit.ir.circuit import Circuit
 from bqskit.passes.search.generator import LayerGenerator
@@ -111,12 +112,14 @@ class MultiSeedLayerGenerator(LayerGenerator):
 
         data['seed_seen_before'] = {self.hash_structure(empty_circuit)}
 
+        assert len(empty_circuit) == 0
+
         return empty_circuit
 
     def gen_successors(
         self,
         circuit: Circuit,
-        data: dict[str, Any],
+        data: PassData,
     ) -> list[Circuit]:
         """
         Generate the successors of a circuit node.
@@ -135,11 +138,12 @@ class MultiSeedLayerGenerator(LayerGenerator):
             seeds = self.seed_circuits
 
         if 'machine_model' in data:
-            model: MachineModel = data['machine_model']
+            model: MachineModel = data.model
             filtered_seeds = []
             for seed in seeds:
                 seed_graph = seed.coupling_graph
-                if all([edge in model.coupling_graph for edge in seed_graph]):
+                model_graph = model.coupling_graph
+                if seed_graph.is_embedded_in(model_graph):
                     filtered_seeds.append(seed)
             if (seed_diff := len(filtered_seeds) - len(seeds)) != 0:
                 _logger.warn(
@@ -173,7 +177,6 @@ class MultiSeedLayerGenerator(LayerGenerator):
             if h not in data['seed_seen_before']:
                 data['seed_seen_before'].add(h)
                 filtered_successors.append(s)
-
         return filtered_successors
 
     def remove_atomic_units(self, circuit: Circuit) -> list[Circuit]:

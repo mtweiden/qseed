@@ -1,8 +1,8 @@
 """Learn circuit to template mapping given Pauli vectors."""
 from torch import tensor, randn
 import torch.nn as nn
-from learning.pauli_encoder import PauliEncoder
-from learning.pauli_decoder import PauliDecoder
+from qseed.models.pauli_encoder import PauliEncoder
+from qseed.models.pauli_decoder import PauliDecoder
 
 class AddGaussianNoise(object):
 	def __init__(self, mean: float = 0.0, std: float = 1.0) -> None:

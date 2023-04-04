@@ -5,6 +5,7 @@ from typing import Any
 from typing import Sequence
 import logging
 
+from bqskit.compiler.passdata import PassData
 from bqskit.compiler.basepass import BasePass
 from bqskit.ir.circuit import Circuit
 from bqskit.ir.opt.cost.functions.residuals.hilbertschmidt import (
@@ -110,7 +111,7 @@ class QSeedSynthesisPass(BasePass):
     def _check_size(self, utry: UnitaryMatrix, seeds : list[Circuit]) -> bool:
         return utry.num_qudits == seeds[0].num_qudits
 
-    def synthesize(self, utry: UnitaryMatrix, data: dict[str, Any]) -> Circuit:
+    async def synthesize(self, utry: UnitaryMatrix, data: PassData) -> Circuit:
         """
         Synthesis abstract method to synthesize a UnitaryMatrix into a Circuit.
 
@@ -126,6 +127,7 @@ class QSeedSynthesisPass(BasePass):
             This function should be self-contained and have no side effects.
         """
         # Seeds from recommender pass
+        seeds = None
         if 'recommended_seeds' in data:
             if self._check_size(utry, data['recommended_seeds'][0]):
                 seeds = data['recommended_seeds'].pop(0)
@@ -145,12 +147,13 @@ class QSeedSynthesisPass(BasePass):
                 )
         # Default seeds set at construction time
         else:
-            if self._check_size(utry, self.seed_circuits):
-                seeds = self.seed_circuits
-            else:
-                raise RuntimeError(
-                    'Default seeds are a different size than the target.'
-                )
+            if self.seed_circuits is not None:
+                if self._check_size(utry, self.seed_circuits):
+                    seeds = self.seed_circuits
+                else:
+                    raise RuntimeError(
+                        'Default seeds are a different size than the target.'
+                    )
         
         if seeds is None:
             raise RuntimeError(
@@ -172,13 +175,11 @@ class QSeedSynthesisPass(BasePass):
             store_partial_solutions=self.store_partial_solutions,
             partials_per_depth=self.partials_per_depth,
             instantiate_options=self.instantiate_options,
+            store_instantiation_calls=True,
         )
-        return seeded_synth.synthesize(utry, data)
+        return await seeded_synth.synthesize(utry, data)
 
-    def run(self, circuit: Circuit, data: dict[str, Any] = {}) -> None:
+    async def run(self, circuit: Circuit, data: PassData) -> None:
         """Perform the pass's operation, see :class:`BasePass` for more."""
-        if len(data) == 0:
-            data = dict()
-
         target_utry = self.get_target(circuit, data)
-        circuit.become(self.synthesize(target_utry, data))
+        circuit.become(await self.synthesize(target_utry, data))

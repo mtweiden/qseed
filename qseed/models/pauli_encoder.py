@@ -2,7 +2,7 @@
 import torch
 import torch.nn as nn
 
-class PauliLearner(nn.Module):
+class PauliEncoder(nn.Module):
 	def __init__(self, num_qubits : int = 3):
 		if num_qubits != 3:
 			raise ValueError(
@@ -12,12 +12,6 @@ class PauliLearner(nn.Module):
 		self.num_qubits = num_qubits
 		self.pauli_len = 4 ** num_qubits
 		self.dropout_p = 0.4
-
-		# Number of output templates
-		if num_qubits == 3:
-			self.num_templates = 12 # all is 353
-		else:
-			self.num_templates = 1000
 
 		#self.hidden_depth = 128
 		widths = [100, 128, 64, 50, 32, 16] # shallow
@@ -38,9 +32,7 @@ class PauliLearner(nn.Module):
 				nn.Dropout(p=self.dropout_p)	
 			) for (in_width, out_width) in self.layer_widths
 		])
-		self.output_layer = nn.Sequential(
-			nn.Linear(widths[-1], self.num_templates),
-		)
+		self.output_layer = nn.Sequential(nn.Linear(widths[-1], widths[-1]))
 	
 	def forward(self, x):
 		x = self.input_layer(x)

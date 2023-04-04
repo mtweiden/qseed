@@ -5,6 +5,7 @@ from torch.nn import Module
 from torch import tensor
 from torch import topk
 from qseed.encoding import pauli_encoding
+from bqskit.compiler.passdata import PassData
 
 # TODO:
 # - add cuda support
@@ -65,7 +66,7 @@ class TopologyAwareRecommenderPass(BasePass):
         """
         return pauli_encoding(circuit)
     
-    def _decode(self, model_output : tensor, topology : str) -> list[Circuit]:
+    def _decode(self, model_output : tensor, topology : int) -> list[Circuit]:
         """
         Function that takes an encoded recommender model output, and transforms
         it into a Circuit.
@@ -78,19 +79,18 @@ class TopologyAwareRecommenderPass(BasePass):
             recommendations (list[Circuit]): A list of recommendation seed
                 circuits.
         """
-        top = ['a','b','c','d'].index(topology)
         _,indices = topk(model_output, self.seeds_per_inference, dim=-1)
-        return [self.template_lists[top][int(i)] for i in indices]
+        return [self.template_lists[topology][int(i)] for i in indices]
     
     def _detect_connectivity(self, circuit: Circuit) -> str:
         """
         The input `circuit` is assumed to have 3 qubits, and be one of 4
         possible connectivities.
 
-        'a' - linear   - [(0,1),(1,2)]
-        'b' - linear   - [(0,1),(0,2)]
-        'c' - linear   - [(0,2),(1,2)]
-        'd' - complete - [(0,1),(1,2),(0,2)]
+            0 - linear   - [(0,1),(1,2)]
+            1 - linear   - [(0,1),(0,2)]
+            2 - linear   - [(0,2),(1,2)]
+            3 - complete - [(0,1),(1,2),(0,2)]
         """
         if circuit.num_qudits != 3:
             raise RuntimeError(
@@ -98,17 +98,19 @@ class TopologyAwareRecommenderPass(BasePass):
             )
         a,b,c = circuit.coupling_graph.get_qudit_degrees()
         if a == 1 and b == 2 and c == 1:
-            return 'a'
+            return 0
         elif a == 2 and b == 1 and c == 1:
-            return 'b'
+            return 1
         elif a == 1 and b == 1 and c == 2:
-            return 'c'
+            return 2
         elif a == 2 and b == 2 and c == 2:
-            return 'd'
+            if len(self.models) < 4: # no complete graph recommender
+                return 0
+            return 3
         else: # no or very little connectivity case
-            return 'a'
+            return 0
     
-    def run(self, circuit: Circuit, data: dict[str, Any] = {}) -> None:
+    async def run(self, circuit: Circuit, data: PassData) -> None:
         """
         Calls the recommender model on the given `circuit`, storing the 
         recommended seed circuits in the `data` dictionary.
@@ -116,9 +118,10 @@ class TopologyAwareRecommenderPass(BasePass):
         if 'recommended_seeds' not in data:
             data['recommended_seeds'] = []
 
-        encoded_circuit = self._encode(circuit)
         connectivity_code = self._detect_connectivity(circuit)
-        model_output = self.model(encoded_circuit)
+
+        encoded_circuit = self._encode(circuit)
+        model_output = self.models[connectivity_code](encoded_circuit)
         recommendations = self._decode(model_output, connectivity_code)
 
         data['recommended_seeds'].append(recommendations)
