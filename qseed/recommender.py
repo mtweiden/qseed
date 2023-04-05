@@ -6,6 +6,7 @@ from torch import tensor
 from torch import topk
 from qseed.encoding import pauli_encoding
 from bqskit.compiler.passdata import PassData
+from timeit import default_timer
 
 # TODO:
 # - add cuda support
@@ -117,6 +118,8 @@ class TopologyAwareRecommenderPass(BasePass):
         """
         if 'recommended_seeds' not in data:
             data['recommended_seeds'] = []
+        
+        start = default_timer()
 
         connectivity_code = self._detect_connectivity(circuit)
 
@@ -124,4 +127,5 @@ class TopologyAwareRecommenderPass(BasePass):
         model_output = self.models[connectivity_code](encoded_circuit)
         recommendations = self._decode(model_output, connectivity_code)
 
+        print(f'Recommender: {default_timer()  - start}')
         data['recommended_seeds'].append(recommendations)
