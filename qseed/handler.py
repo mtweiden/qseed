@@ -44,7 +44,7 @@ class Handler:
             states.append(
                 torch.load(
                     f'qseed/models/learner_{topology}.model',
-                    map_location='cpu',
+                    map_location='cuda',
                 )
             )
             with open(f'templates/circuits_{topology}.pickle','rb') as f:
