@@ -71,6 +71,7 @@ class Handler:
             self.recommender, 
             QSeedSynthesisPass(),
             self.recorder,
+            UnfoldPass(),
         ]
         task = CompilationTask(
             circuit, 
@@ -80,10 +81,9 @@ class Handler:
                     block_passes,
                     collection_filter=self._filter,
                 ),
-                UnfoldPass(),
             ]
         )
-        with Compiler() as compiler:
+        with Compiler(num_workers=48) as compiler:
             new_circuit = compiler.compile(task)
         opt_total_cnots, opt_total_u3s = self._count_gates(new_circuit)
 
