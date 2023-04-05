@@ -119,13 +119,21 @@ class TopologyAwareRecommenderPass(BasePass):
         if 'recommended_seeds' not in data:
             data['recommended_seeds'] = []
         
-        start = default_timer()
 
         connectivity_code = self._detect_connectivity(circuit)
 
+        enc_start = default_timer()
         encoded_circuit = self._encode(circuit)
+        enc_end = default_timer()
+        inf_start = default_timer()
         model_output = self.models[connectivity_code](encoded_circuit)
+        inf_end = default_timer()
+        rec_start = default_timer()
         recommendations = self._decode(model_output, connectivity_code)
+        rec_end = default_timer()
 
-        print(f'Recommender: {default_timer()  - start}')
         data['recommended_seeds'].append(recommendations)
+
+        print(f'Encoding : {enc_end - enc_start}')
+        print(f'Inference: {inf_end - inf_start}')
+        print(f'Recommend: {rec_end - rec_start}')
