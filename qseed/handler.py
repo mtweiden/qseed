@@ -17,6 +17,7 @@ from bqskit.ir.gates import CNOTGate, SwapGate, U3Gate
 from bqskit.passes.util import RecordStatsPass
 from bqskit.ir import Operation
 from bqskit.ir.circuit import CircuitGate
+from bqskit.passes import UnfoldPass
 
 from qseed.models.pauli_learner import PauliLearner
 from qseed.recommender import TopologyAwareRecommenderPass
@@ -78,7 +79,8 @@ class Handler:
                 ForEachBlockPass(
                     block_passes,
                     collection_filter=self._filter,
-                )
+                ),
+                UnfoldPass(),
             ]
         )
         with Compiler() as compiler:
