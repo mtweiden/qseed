@@ -95,7 +95,8 @@ class TopologyAwareRecommenderPass(BasePass):
         """
         if circuit.num_qudits != 3:
             raise RuntimeError(
-                'Recommender currently only supports blocksize 3 circuits.'
+                f'Recommender currently only supports blocksize 3 circuits. '
+                f'Provided circuit has size {circuit.num_qudits}.'
             )
         a,b,c = circuit.coupling_graph.get_qudit_degrees()
         if a == 1 and b == 2 and c == 1:
@@ -118,16 +119,17 @@ class TopologyAwareRecommenderPass(BasePass):
         """
         if 'recommended_seeds' not in data:
             data['recommended_seeds'] = []
-        
 
         connectivity_code = self._detect_connectivity(circuit)
 
         enc_start = default_timer()
         encoded_circuit = self._encode(circuit)
         enc_end = default_timer()
+
         inf_start = default_timer()
         model_output = self.models[connectivity_code](encoded_circuit)
         inf_end = default_timer()
+
         rec_start = default_timer()
         recommendations = self._decode(model_output, connectivity_code)
         rec_end = default_timer()
