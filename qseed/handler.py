@@ -18,6 +18,7 @@ from bqskit.passes.util import RecordStatsPass
 from bqskit.ir import Operation
 from bqskit.ir.circuit import CircuitGate
 from bqskit.passes import UnfoldPass
+from bqskit.passes import ScanningGateRemovalPass
 
 from qseed.models.pauli_learner import PauliLearner
 from qseed.recommender import TopologyAwareRecommenderPass
@@ -32,22 +33,16 @@ class Handler:
         self,
     ) -> None:
         """
-        The constructure for the HandlerPass. This function sets up what the
+        The constructor for the HandlerPass. This function sets up what the
         handler will perform before synthesis is called on blocks.
         """
         self.num_qubits = 3
         self.topologies = ['a','b','c']
-        models = []
-        states = []
-        templates = []
+        models, states, templates = [], [], []
         for topology in self.topologies:
             models.append(PauliLearner())
-            states.append(
-                torch.load(
-                    f'qseed/models/learner_{topology}.model',
-                    map_location='cuda',
-                )
-            )
+            path = f'qseed/models/learner_{topology}.model'
+            states.append(torch.load(path,map_location='cpu'))
             with open(f'templates/circuits_{topology}.pickle','rb') as f:
                 templates.append(pickle.load(f))
         self.recommender = TopologyAwareRecommenderPass(
@@ -70,6 +65,7 @@ class Handler:
         block_passes = [
             self.recommender, 
             QSeedSynthesisPass(),
+            ScanningGateRemovalPass(),
             self.recorder,
         ]
         task = CompilationTask(
