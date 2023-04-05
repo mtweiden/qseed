@@ -135,5 +135,5 @@ class TopologyAwareRecommenderPass(BasePass):
         data['recommended_seeds'].append(recommendations)
 
         print(f'Encoding : {enc_end - enc_start}')
-        print(f'Inference: {inf_end - inf_start}')
-        print(f'Recommend: {rec_end - rec_start}')
+        #print(f'Inference: {inf_end - inf_start}')
+        #print(f'Recommend: {rec_end - rec_start}')

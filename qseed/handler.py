@@ -45,7 +45,7 @@ class Handler:
             states.append(
                 torch.load(
                     f'qseed/models/learner_{topology}.model',
-                    map_location='cuda',
+                    map_location='cpu',
                 )
             )
             with open(f'templates/circuits_{topology}.pickle','rb') as f:
@@ -71,7 +71,6 @@ class Handler:
             self.recommender, 
             QSeedSynthesisPass(),
             self.recorder,
-            UnfoldPass(),
         ]
         task = CompilationTask(
             circuit, 
@@ -81,9 +80,10 @@ class Handler:
                     block_passes,
                     collection_filter=self._filter,
                 ),
+                UnfoldPass(),
             ]
         )
-        with Compiler(num_workers=48) as compiler:
+        with Compiler(num_workers=10) as compiler:
             new_circuit = compiler.compile(task)
         opt_total_cnots, opt_total_u3s = self._count_gates(new_circuit)
 
