@@ -254,9 +254,9 @@ class RecForEachBlockPass(BasePass):
             block_datas.append(block_data)
 
         stop = time() ###### DEBUG
-        print(f'{stop-start:>0.1f}s')
+        #print(f'{stop-start:>0.1f}s')
         
-        print('doing work')
+        #print('doing work')
         start = time()
         # Do the work in parallel
         results = await get_runtime().map(
@@ -266,7 +266,7 @@ class RecForEachBlockPass(BasePass):
             block_datas,
         )
         stop = time()
-        print(f'{stop-start:>0.1f}s')
+        #print(f'{stop-start:>0.1f}s')
 
         # Unpack results
         completed_subcircuits, completed_block_datas = zip(*results)

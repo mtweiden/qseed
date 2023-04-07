@@ -20,9 +20,10 @@ from bqskit.ir.circuit import CircuitGate
 from bqskit.passes import UnfoldPass
 from bqskit.passes import ScanningGateRemovalPass
 
-from qseed.models.pauli_learner import PauliLearner
+from qseed.models.unitary_learner import UnitaryLearner
 from qseed.recommender import TopologyAwareRecommenderPass
 from qseed.qseedpass import QSeedSynthesisPass
+from qseed.recforeach import RecForEachBlockPass
 
 
 _logger = logging.getLogger(__name__)
@@ -38,16 +39,13 @@ class Handler:
         """
         self.num_qubits = 3
         self.topologies = ['a','b','c']
-        models, states, templates = [], [], []
+        self.models, self.states, self.templates = [], [], []
         for topology in self.topologies:
-            models.append(PauliLearner())
-            path = f'qseed/models/learner_{topology}.model'
-            states.append(torch.load(path,map_location='cpu'))
+#            self.models.append(UnitaryLearner())
+#            path = f'qseed/models/unitary_learner_{topology}.model'
+#            self.states.append(torch.load(path,map_location='cpu'))
             with open(f'templates/circuits_{topology}.pickle','rb') as f:
-                templates.append(pickle.load(f))
-        self.recommender = TopologyAwareRecommenderPass(
-            models, states, templates,
-        )
+                self.templates.append(pickle.load(f))
         self.recorder = RecordStatsPass()
     
     def _filter(self, circuit : Circuit | Operation | CircuitGate) -> bool:
@@ -63,7 +61,6 @@ class Handler:
         start_total_cnots, start_total_u3s = self._count_gates(circuit)
 
         block_passes = [
-            self.recommender, 
             QSeedSynthesisPass(),
             ScanningGateRemovalPass(),
             self.recorder,
@@ -72,19 +69,23 @@ class Handler:
             circuit, 
             [
                 QuickPartitioner(block_size=3),
-                ForEachBlockPass(
+                RecForEachBlockPass(
                     block_passes,
+                    self.models,
+                    self.states,
+                    self.templates,
                     collection_filter=self._filter,
                 ),
                 UnfoldPass(),
             ]
         )
-        with Compiler(num_workers=10) as compiler:
+        with Compiler(num_workers=64) as compiler:
             new_circuit = compiler.compile(task)
         opt_total_cnots, opt_total_u3s = self._count_gates(new_circuit)
+        inst_calls = self._get_calls(data)
 
         start_stats = start_time, start_total_cnots, start_total_u3s
-        stop_stats = time(), opt_total_cnots, opt_total_u3s
+        stop_stats = stop_time, opt_total_cnots, opt_total_u3s, inst_calls
         self.record_stats(start_stats, stop_stats)
     
     def _count_gates(self, circuit : Circuit) -> int:
@@ -93,20 +94,33 @@ class Handler:
         swaps = counts[SwapGate()] if SwapGate() in counts else 0
         u3s   = counts[U3Gate()] if U3Gate() in counts else 0
         return cnots + 3*swaps, u3s
+    
+    def _get_calls(self, data : PassData) -> int:
+        calls = []
+		if not 'ForEachBlockPass_data' in data:
+			return calls
+        for fakesubdata in data['ForEachBlockPass_data']:
+            for subdata in fakesubdata:
+                if 'instantiation_calls' in subdata:
+                    calls.append(subdata['instantiation_calls'])
+        return calls
+
 
     def record_stats(self, start_stats: tuple, stop_stats: tuple) -> None:
         """Log statistics about the run."""
         start_time, start_cnots, start_u3s = start_stats
-        #opt_time, opt_cnots, opt_u3s, calls = stop_stats
-        opt_time, opt_cnots, opt_u3s = stop_stats
+        opt_time, opt_cnots, opt_u3s, calls = stop_stats
+
         duration = opt_time - start_time
-        #mean_calls = np.mean(calls)
-        #std_calls  = np.std(calls)
+        mean_calls = np.mean(calls)
+        std_calls  = np.std(calls)
+
         time_str = f'Optimization time: {duration:>0.3f}s'
         depth_str = f'Optimized u3 gates: {start_u3s} -> {opt_u3s}'
         count_str = f'Optimized cx gates: {start_cnots} -> {opt_cnots}'
-        #calls_str = f'Calls: mean - {mean_calls}  std - {std_calls}'
+        calls_str = f'Calls: mean - {mean_calls}  std - {std_calls}'
+
         _logger.info(time_str)
         _logger.info(depth_str)
         _logger.info(count_str)
-        #_logger.info(calls_str)
+        _logger.info(calls_str)
