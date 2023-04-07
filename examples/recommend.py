@@ -4,13 +4,12 @@ import logging
 import numpy as np
 
 from bqskit import Circuit
-from bqskit.ir.operation import Operation
 from bqskit.compiler import Compiler, CompilationTask
-from bqskit.ir.gates import CNOTGate, U3Gate, SwapGate
+from bqskit.ir.gates import CNOTGate, SwapGate
 from bqskit.passes import QuickPartitioner, UnfoldPass, ForEachBlockPass
 from qseed import QSeedSynthesisPass
 from qseed.recommender import TopologyAwareRecommenderPass
-from qseed.models import PauliLearner
+from qseed.models import UnitaryLearner
 
 from examples.util import size_limit
 
@@ -29,45 +28,47 @@ if __name__ == '__main__':
 
 	circuit = Circuit.from_file(file_name)
 
-	models, states, templates = [], [], []
-	for topology in ['a','b','c']:
-		models.append(PauliLearner())
-		path= f'qseed/models/learner_{topology}.model'
-		states.append(torch.load(path,map_location='cpu'))
-		with open(f'templates/circuits_{topology}.pickle','rb') as f:
-			templates.append(pickle.load(f))
+    models, states, templates = [], [], []
+    for topology in ['a','b','c']:
+        models.append(UnitaryLearner())
+        path= f'qseed/models/unitary_learner_{topology}.model'
+        states.append(torch.load(path,map_location='cpu'))
+        with open(f'templates/circuits_{topology}.pickle','rb') as f:
+            templates.append(pickle.load(f))
 
 	partitioner = QuickPartitioner()
 	recommender = TopologyAwareRecommenderPass(models, states, templates)
 	qseed = QSeedSynthesisPass()
 	unfold = UnfoldPass()
 
-	# Partition
-	with Compiler(num_workers=64) as compiler:
-		task1 = CompilationTask(circuit, partitioner)
-		partitioned_circuit = compiler.compile(task1)
-	print('finished partitioning')
+    # Partition
+    with Compiler(num_workers=64) as compiler:
+        task1 = CompilationTask(circuit, partitioner)
+        partitioned_circuit = compiler.compile(task1)
 
-	# Recommend
-	with Compiler(num_workers=64) as compiler:
-		recom = ForEachBlockPass(recommender, collection_filter=size_limit)
-		task = CompilationTask(partitioned_circuit, recom)
-		_, data = compiler.compile(task, request_data=True)
-	#assert 'recommended_seeds' in data
-	#for seeds in data['recommended_seeds']:
-	#	print(seeds)
-	
-	
-	## QSeed
-	#with Compiler(num_workers=64) as compiler:
-	#	task = CompilationTask(partitioned_circuit, qseed)
-	#	optimized_circuit = compiler.compile(task)
-	
-	# Unfold
-	with Compiler(num_workers=64) as compiler:
-		#task = CompilationTask(optimized_circuit, unfold)
-		task = CompilationTask(partitioned_circuit, unfold)
-		final_circuit = compiler.compile(task)
+    print('finished partitioning')
+
+    # Recommend
+    with Compiler(num_workers=64) as compiler:
+        recom = ForEachBlockPass(recommender, collection_filter=size_limit)
+        task = CompilationTask(partitioned_circuit, recom)
+        _, data = compiler.compile(task, request_data=True)
+    
+    
+    for fakesubdata in data['ForEachBlockPass_data']:
+        for subdata in fakesubdata:
+            assert 'recommended_seeds' in subdata
+    
+    # QSeed
+    with Compiler(num_workers=64) as compiler:
+        task = CompilationTask(partitioned_circuit, qseed)
+        optimized_circuit = compiler.compile(task)
+    
+    # Unfold
+    with Compiler(num_workers=64) as compiler:
+        #task = CompilationTask(optimized_circuit, unfold)
+        task = CompilationTask(partitioned_circuit, unfold)
+        final_circuit = compiler.compile(task)
 
 	print(f'Original : {num_cnots(circuit)}')
 	print(f'Optimized: {num_cnots(final_circuit)}')

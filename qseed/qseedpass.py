@@ -109,7 +109,8 @@ class QSeedSynthesisPass(BasePass):
         self.instantiate_options = instantiate_options
 
     def _check_size(self, utry: UnitaryMatrix, seeds : list[Circuit]) -> bool:
-        return utry.num_qudits == seeds[0].num_qudits
+        #return utry.num_qudits == seeds[0].num_qudits
+        return utry.num_qudits == seeds.num_qudits
 
     async def synthesize(self, utry: UnitaryMatrix, data: PassData) -> Circuit:
         """
@@ -130,7 +131,8 @@ class QSeedSynthesisPass(BasePass):
         seeds = None
         if 'recommended_seeds' in data:
             if self._check_size(utry, data['recommended_seeds'][0]):
-                seeds = data['recommended_seeds'].pop(0)
+                #seeds = data['recommended_seeds'].pop(0)
+                seeds = data['recommended_seeds']
             else:
                 raise RuntimeError(
                     'Recommended seeds are a different size than the target.'

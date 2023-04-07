@@ -6,6 +6,7 @@ from bqskit.utils.math import dot_product, PauliMatrices
 from bqskit import Circuit
 from bqskit.qis.unitary import UnitaryMatrix
 
+from timeit import default_timer as time
 
 def to_canonical_unitary(unitary : np.array) -> np.array:
     """
@@ -31,7 +32,7 @@ def to_canonical_unitary(unitary : np.array) -> np.array:
     std_correction = np.exp(1j * correction_phase)
     return std_correction * special_unitary
 
-def pauli_encoding(circuit : Circuit) -> tensor:
+def pauli_encoding(circuit : Circuit) -> np.array:
     """
     Get the canonical pauli coefficient vector of the unitary associated with
     `circuit`.
@@ -44,9 +45,30 @@ def pauli_encoding(circuit : Circuit) -> tensor:
             unitary associated with `circuit`.
     """
     unitary = circuit.get_unitary().numpy
+    start = time()
     canonical_unitary = to_canonical_unitary(unitary)
+    stop = time()
+    print(f'Canonical: {1000*(stop-start):>0.1f}ms')
+
+    start = time()
     H = unitary_log_no_i(canonical_unitary)
-    return tensor(pauli_expansion(H)).float()
+    stop = time()
+    print(f'Finding H: {1000*(stop-start):>0.1f}ms')
+
+    start = time()
+    pauli = pauli_expansion(H)
+    stop = time()
+    print(f'Finding pauli: {1000*(stop-start):>0.1f}ms')
+    return pauli
+
+def unitary_encoding(circuit : Circuit) -> np.array:
+    unitary = circuit.get_unitary().numpy
+    canonical_unitary = to_canonical_unitary(unitary)
+    real = np.real(canonical_unitary)
+    imag = np.imag(canonical_unitary)
+
+async def async_encoding(circuit : Circuit) -> np.array:
+    return pauli_encoding(circuit)
 
 def structural_encoding(circuit : Circuit) -> tensor:
     """

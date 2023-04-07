@@ -49,7 +49,7 @@ class TopologyAwareRecommenderPass(BasePass):
         self.template_lists = template_lists
         self.seeds_per_inference = seeds_per_inference
     
-    def _encode(self, circuit : Circuit) -> tensor:
+    def encode(self, circuit : Circuit) -> tensor:
         """
         Function that encodes a circuit into some format that the recommender
         model can take as input.
@@ -63,7 +63,7 @@ class TopologyAwareRecommenderPass(BasePass):
         """
         return pauli_encoding(circuit)
     
-    def _decode(self, model_output : tensor, topology : int) -> list[Circuit]:
+    def decode(self, model_output : tensor, topology : int) -> list[Circuit]:
         """
         Function that takes an encoded recommender model output, and transforms
         it into a Circuit.
@@ -79,7 +79,7 @@ class TopologyAwareRecommenderPass(BasePass):
         _,indices = topk(model_output, self.seeds_per_inference, dim=-1)
         return [self.template_lists[topology][int(i)] for i in indices]
     
-    def _detect_connectivity(self, circuit: Circuit) -> str:
+    def detect_connectivity(self, circuit: Circuit) -> str:
         """
         The input `circuit` is assumed to have 3 qubits, and be one of 4
         possible connectivities.
@@ -118,9 +118,9 @@ class TopologyAwareRecommenderPass(BasePass):
 
         connectivity_code = self._detect_connectivity(circuit)
 
-        #enc_start = default_timer()
-        encoded_circuit = self._encode(circuit)
-        #enc_end = default_timer()
+        enc_start = default_timer()
+        encoded_circuit = tensor(self._encode(circuit)).float()
+        enc_end = default_timer()
 
         #inf_start = default_timer()
         model_output = self.models[connectivity_code](encoded_circuit)
