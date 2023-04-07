@@ -62,7 +62,7 @@ class QSearchHandler:
                 )
             ]
         )
-        with Compiler() as compiler:
+        with Compiler(num_workers=64) as compiler:
             new_circuit = compiler.compile(task)
         opt_total_cnots, opt_total_u3s = self._count_gates(new_circuit)
 
