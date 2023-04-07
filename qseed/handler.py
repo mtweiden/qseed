@@ -98,11 +98,14 @@ class Handler:
         return cnots + 3*swaps, u3s
     
     def _get_calls(self, data : PassData) -> int:
+        if 'ForEachBlockPass_data' not in data:
+            return []
         calls = []
         for fakesubdata in data['ForEachBlockPass_data']:
             for subdata in fakesubdata:
                 if 'instantiation_calls' in subdata:
-                    calls.append(subdata['instantiation_calls'])
+                    # -1 because we don't count empty circuit instantiation
+                    calls.append(subdata['instantiation_calls'] - 1)
         return calls
 
 

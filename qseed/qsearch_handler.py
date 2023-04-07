@@ -18,6 +18,7 @@ from bqskit.passes.util import RecordStatsPass
 from bqskit.ir import Operation
 from bqskit.ir.circuit import CircuitGate
 from bqskit.passes import QSearchSynthesisPass
+from bqskit.passes import UnfoldPass
 
 from qseed.models.pauli_learner import PauliLearner
 
@@ -59,7 +60,8 @@ class QSearchHandler:
                 ForEachBlockPass(
                     block_passes,
                     collection_filter=self._filter,
-                )
+                ),
+				UnfoldPass(),
             ]
         )
         with Compiler() as compiler:
