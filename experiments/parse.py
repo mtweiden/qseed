@@ -10,7 +10,7 @@ def find_stats(lines : list[str]) -> tuple[int, int, int, float]:
 	#  compilation time
 	cx_pat = r'CNOTGate Count'
 	u3_pat = r'U3Gate Count'
-	inst_pat = r'Mean Instantiation Calls'
+	inst_pat = r'Instantiation Calls'
 	time_pat = r'Optimization time'
 
 	int_str = r'\d+'
