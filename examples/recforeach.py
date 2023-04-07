@@ -6,6 +6,7 @@ from qseed.recforeach import RecForEachBlockPass
 from qseed.models import UnitaryLearner
 from qseed.recommender import TopologyAwareRecommenderPass
 from bqskit.passes import QuickPartitioner, UnfoldPass
+from bqskit.passes import RecordStatsPass
 import torch
 import pickle
 from examples.util import size_limit, num_cnots
@@ -29,11 +30,12 @@ if __name__ == '__main__':
         with open(f'templates/circuits_{topology}.pickle','rb') as f:
             templates.append(pickle.load(f))
     recommender = TopologyAwareRecommenderPass(models, states, templates)
+    recorder = RecordStatsPass()
 
     part = QuickPartitioner()
     qseed = QSeedSynthesisPass()
     foreach = RecForEachBlockPass(
-        [qseed],
+        [qseed, recorder],
         models,
         states,
         templates,
