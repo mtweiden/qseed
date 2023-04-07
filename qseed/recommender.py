@@ -2,14 +2,10 @@ from typing import Any, Sequence
 from bqskit import Circuit
 from bqskit.compiler import BasePass
 from torch.nn import Module
-from torch import tensor
-from torch import topk
+from torch import tensor, topk, set_num_threads
 from qseed.encoding import pauli_encoding
 from bqskit.compiler.passdata import PassData
 from timeit import default_timer
-
-# TODO:
-# - add cuda support
 
 class TopologyAwareRecommenderPass(BasePass):
 
@@ -122,20 +118,20 @@ class TopologyAwareRecommenderPass(BasePass):
 
         connectivity_code = self._detect_connectivity(circuit)
 
-        enc_start = default_timer()
+        #enc_start = default_timer()
         encoded_circuit = self._encode(circuit)
-        enc_end = default_timer()
+        #enc_end = default_timer()
 
-        inf_start = default_timer()
+        #inf_start = default_timer()
         model_output = self.models[connectivity_code](encoded_circuit)
-        inf_end = default_timer()
+        #inf_end = default_timer()
 
-        rec_start = default_timer()
+        #rec_start = default_timer()
         recommendations = self._decode(model_output, connectivity_code)
-        rec_end = default_timer()
+        #rec_end = default_timer()
 
         data['recommended_seeds'].append(recommendations)
 
-        print(f'Encoding : {enc_end - enc_start}')
+        #print(f'Encoding : {enc_end - enc_start}')
         #print(f'Inference: {inf_end - inf_start}')
         #print(f'Recommend: {rec_end - rec_start}')
