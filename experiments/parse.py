@@ -60,7 +60,7 @@ if __name__ == '__main__':
 	for file in files:
 		name = file.split('.')[0]
 		stats_file = 'stats.txt'
-		for algo in ['qseed', 'qsearch']:
+		for algo in ['qseed', 'qsearch', 'random']:
 			with open(f'logs/{algo}/{name}.log', 'r') as f:
 				cx, u3, inst, time = find_stats(f.readlines(), f'{algo}-{name}')
 			with open(stats_file, 'a') as f:

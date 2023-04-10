@@ -49,9 +49,10 @@ class Handler:
 		self.recorder = RecordStatsPass()
 	
 	def _filter(self, circuit : Circuit | Operation | CircuitGate) -> bool:
-		return circuit.num_qudits == 3
+		return circuit.num_qudits == self.num_qubits
 
 	def handle(self, circuit: Circuit, data: dict[str, Any] = {}) -> None:
+		start_time = time()
 		start_total_cnots, opt_total_cnots = 0,0
 		start_total_u3s, opt_total_u3s = 0,0
 		
