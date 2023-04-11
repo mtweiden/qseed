@@ -1,10 +1,13 @@
-from typing import Any, Sequence
+from __future__ import annotations
+
+from typing import Any, Sequence, TYPE_CHECKING
 from bqskit import Circuit
 from bqskit.compiler import BasePass
-from torch.nn import Module
-from torch import tensor
-from torch import topk
 from qseed.encoding import structural_encoding
+
+if TYPE_CHECKING:
+    from torch.nn import Module
+    from torch import tensor
 
 # TODO:
 # - add cuda support
@@ -67,6 +70,7 @@ class StructureRecommenderPass(BasePass):
             recommendations (list[Circuit]): A list of recommendation seed
                 circuits.
         """
+        from torch import topk
         _,indices = topk(model_output, self.seeds_per_inference, dim=-1)
         return [self.template_list[int(i)] for i in indices]
     

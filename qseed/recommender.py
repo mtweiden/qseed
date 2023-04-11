@@ -1,11 +1,14 @@
-from typing import Any, Sequence
+from __future__ import annotations
+
+from typing import Any, Sequence, TYPE_CHECKING
 from bqskit import Circuit
 from bqskit.compiler import BasePass
-from torch.nn import Module
-from torch import tensor, topk, set_num_threads
 from qseed.encoding import pauli_encoding
 from bqskit.compiler.passdata import PassData
 from timeit import default_timer
+
+if TYPE_CHECKING:
+    from torch.nn import Module
 
 class TopologyAwareRecommenderPass(BasePass):
 
@@ -76,6 +79,7 @@ class TopologyAwareRecommenderPass(BasePass):
             recommendations (list[Circuit]): A list of recommendation seed
                 circuits.
         """
+        from torch import topk
         _,indices = topk(model_output, self.seeds_per_inference, dim=-1)
         return [self.template_lists[topology][int(i)] for i in indices]
     
@@ -113,6 +117,7 @@ class TopologyAwareRecommenderPass(BasePass):
         Calls the recommender model on the given `circuit`, storing the 
         recommended seed circuits in the `data` dictionary.
         """
+        from torch import tensor
         if 'recommended_seeds' not in data:
             data['recommended_seeds'] = []
 
