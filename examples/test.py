@@ -27,8 +27,7 @@ if __name__ == '__main__':
 		models.append(UnitaryLearner())
 		path = f'qseed/models/unitary_learner_{topology}.model'
 		states.append(torch.load(path,map_location='cpu'))
-		with open(f'templates/circuits_{topology}.pickle','rb') as f:
-			templates.append(pickle.load(f))
+		templates.append(f'templates/circuits_{topology}.pickle')
 
 	block_passes = [
 		QSeedSynthesisPass(),

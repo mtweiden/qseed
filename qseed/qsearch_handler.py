@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 import pickle
-import torch
+# import torch
 from typing import Any, Sequence
 from timeit import default_timer as time
 import numpy as np
@@ -20,7 +20,7 @@ from bqskit.ir.circuit import CircuitGate
 from bqskit.passes import QSearchSynthesisPass
 from bqskit.passes import UnfoldPass
 
-from qseed.models.pauli_learner import PauliLearner
+# from qseed.models.pauli_learner import PauliLearner
 
 
 _logger = logging.getLogger(__name__)
