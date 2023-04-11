@@ -129,6 +129,8 @@
 #python experiments/run.py qasm/shor/mapped-shor_16.qasm
 #python experiments/run.py qasm/shor/mapped-shor_32.qasm --qsearch
 #python experiments/run.py qasm/shor/mapped-shor_32.qasm
+#python experiments/run.py qasm/shor/mapped-shor_64.qasm --qsearch
+#python experiments/run.py qasm/shor/mapped-shor_64.qasm
 #
 #python experiments/run.py qasm/tfim/mapped-tfim_16.qasm --qsearch
 #python experiments/run.py qasm/tfim/mapped-tfim_16.qasm
@@ -158,51 +160,17 @@
 #python experiments/run.py qasm/vqe/mapped-vqe_18.qasm --qsearch
 #python experiments/run.py qasm/vqe/mapped-vqe_18.qasm
 
-#python experiments/run.py qasm/qft/mapped-qft_3.qasm
-#python experiments/run.py qasm/qft/mapped-qft_4.qasm
-#python experiments/run.py qasm/qft/mapped-qft_5.qasm
-#python experiments/run.py qasm/qft/mapped-qft_6.qasm
-#python experiments/run.py qasm/qft/mapped-qft_7.qasm
-#python experiments/run.py qasm/qft/mapped-qft_8.qasm
-#python experiments/run.py qasm/qft/mapped-qft_16.qasm
-#python experiments/run.py qasm/qft/mapped-qft_32.qasm
-#python experiments/run.py qasm/qpe/mapped-qpe_14.qasm
-#python experiments/run.py qasm/qpe/mapped-qpe_6.qasm
-#python experiments/run.py qasm/qpe/mapped-qpe_8.qasm
-#python experiments/run.py qasm/tfim/mapped-tfim_3.qasm
-#python experiments/run.py qasm/tfim/mapped-tfim_4.qasm
-#python experiments/run.py qasm/tfim/mapped-tfim_5.qasm
-#python experiments/run.py qasm/tfim/mapped-tfim_6.qasm
-#python experiments/run.py qasm/tfim/mapped-tfim_7.qasm
-#python experiments/run.py qasm/tfim/mapped-tfim_8.qasm
-#python experiments/run.py qasm/tfim/mapped-tfim_16.qasm
-#python experiments/run.py qasm/tfim/mapped-tfim_32.qasm
-#python experiments/run.py qasm/tfim/mapped-tfim_64.qasm
-#python experiments/run.py qasm/shor/mapped-shor_64.qasm --qsearch
-#python experiments/run.py qasm/shor/mapped-shor_64.qasm
-
-#python experiments/run.py qasm/add/mapped-add_17.qasm
-#python experiments/run.py qasm/heisenberg/mapped-heisenberg_5.qasm
-#python experiments/run.py qasm/hhl/mapped-hhl_6.qasm
-#python experiments/run.py qasm/hubbard/mapped-hubbard_4.qasm
-#python experiments/run.py qasm/mult/mapped-mult_8.qasm
-#python experiments/run.py qasm/qae/mapped-qae_11.qasm
-#python experiments/run.py qasm/qae/mapped-qae_17.qasm
-#python experiments/run.py qasm/qft/mapped-qft_3.qasm
-#python experiments/run.py qasm/qft/mapped-qft_4.qasm
-#python experiments/run.py qasm/qft/mapped-qft_5.qasm
-#python experiments/run.py qasm/qml/mapped-qml_4.qasm
-#python experiments/run.py qasm/qml/mapped-qml_13.qasm
-#python experiments/run.py qasm/qpe/mapped-qpe_6.qasm
-#python experiments/run.py qasm/qpe/mapped-qpe_8.qasm
-#python experiments/run.py qasm/tfim/mapped-tfim_4.qasm
-#python experiments/run.py qasm/tfim/mapped-tfim_5.qasm
-#python experiments/run.py qasm/tfim/mapped-tfim_6.qasm
-#python experiments/run.py qasm/tfim/mapped-tfim_7.qasm
-
-python experiments/run.py qasm/qft/mapped-qft_3.qasm
-python experiments/run.py qasm/qft/mapped-qft_3.qasm
-python experiments/run.py qasm/qft/mapped-qft_3.qasm
-python experiments/run.py qasm/qft/mapped-qft_3.qasm
-python experiments/run.py qasm/qft/mapped-qft_3.qasm
-python experiments/run.py qasm/qft/mapped-qft_3.qasm
+python experiments/run.py qasm/add/mapped-add_17.qasm
+python experiments/run.py qasm/heisenberg/mapped-heisenberg_5.qasm
+python experiments/run.py qasm/hubbard/mapped-hubbard_4.qasm
+python experiments/run.py qasm/hhl/mapped-hhl_6.qasm
+python experiments/run.py qasm/mult/mapped-mult_8.qasm
+python experiments/run.py qasm/qft/mapped-qft_4.qasm
+python experiments/run.py qasm/qft/mapped-qft_5.qasm
+python experiments/run.py qasm/qml/mapped-qml_4.qasm
+python experiments/run.py qasm/qpe/mapped-qpe_6.qasm
+python experiments/run.py qasm/qpe/mapped-qpe_8.qasm
+python experiments/run.py qasm/tfim/mapped-tfim_4.qasm
+python experiments/run.py qasm/tfim/mapped-tfim_5.qasm
+python experiments/run.py qasm/tfim/mapped-tfim_6.qasm
+python experiments/run.py qasm/tfim/mapped-tfim_7.qasm
