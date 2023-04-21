@@ -2,15 +2,16 @@
 from __future__ import annotations
 
 import logging
-from typing import Callable, Sequence, Any
-from torch.nn import Module
-from torch import tensor, topk, real, imag, concat
+import pickle
+from typing import Callable, Sequence, Any, TYPE_CHECKING
 import numpy as np
 from timeit import default_timer as time
-import torch
 
-from qseed.encoding import pauli_encoding, async_encoding
-from qseed.models import UnitaryLearner
+if TYPE_CHECKING:
+	from torch.nn import Module
+	from torch import tensor
+
+from qseed.encoding import async_encoding
 
 from bqskit.compiler.basepass import _sub_do_work
 from bqskit.compiler.basepass import BasePass
@@ -49,7 +50,7 @@ class RecForEachBlockPass(BasePass):
 		loop_body: WorkflowLike,
 		recommender_models  : Sequence[Module],
 		model_states		: Sequence[dict[str,Any]],
-		template_lists	    : Sequence[Sequence[Circuit]],
+		template_lists	    : Sequence[str],
 		seeds_per_inference : int = 3,
 		calculate_error_bound: bool = False,
 		collection_filter: Callable[[Operation], bool] | None = None,
@@ -69,7 +70,7 @@ class RecForEachBlockPass(BasePass):
 			
 			template_lists (Sequence[list[Circuit]]): The outputs of 
 				`recommender_model` must correspond to template circuits in 
-				this list.
+				this list. # TODO Update
 			
 			seeds_per_inference (int): The number of seeds to recommend
 				per circuit.
@@ -121,8 +122,24 @@ class RecForEachBlockPass(BasePass):
 		#self.states = model_states                            # causes error
 		#for model,state in zip(self.models, model_states):
 		#	model.load_state_dict(state)
-		self.template_lists = template_lists
+
+		self.template_lists_pickle_file_names = template_lists
+		self.template_lists_loaded = [None] * len(template_lists) 
+
+		# # Uncomment the following two lines of code to preload all templates
+		# # This will increase "compilation" time but decrease "synthesis" time
+		# for i in range(len(template_lists)):
+		# 	self.get_template_list(i)
+		
 		self.seeds_per_inference = seeds_per_inference
+	
+	def get_template_list(self, index: int) -> Sequence[Circuit]:
+		if self.template_lists_loaded[index] is None:
+			filename = self.template_lists_pickle_file_names[index]
+			f = open(filename, 'rb')
+			self.template_lists_loaded[index] = pickle.load(f)
+			f.close()
+		return self.template_lists_loaded[index]
 
 	def encode(self, circuit : Circuit) -> tensor:
 		"""
@@ -136,6 +153,7 @@ class RecForEachBlockPass(BasePass):
 			encoded_circuit (torch.tensor): The encoded circuit which can be
 				fed to the recommender model as an input.
 		"""
+		from torch import tensor, real, imag, concat
 		unitary = circuit.get_unitary().numpy
 		real_x = real(tensor(unitary)).flatten()
 		imag_x = imag(tensor(unitary)).flatten()
@@ -155,8 +173,9 @@ class RecForEachBlockPass(BasePass):
 			recommendations (list[Circuit]): A list of recommendation seed
 				circuits.
 		"""
+		from torch import topk
 		_,indices = topk(model_output, self.seeds_per_inference, dim=-1)
-		return [self.template_lists[topology][int(i)] for i in indices]
+		return [self.get_template_list(topology)[int(i)] for i in indices]
 
 	def detect_connectivity(self, circuit: Circuit) -> str:
 		"""
@@ -189,6 +208,8 @@ class RecForEachBlockPass(BasePass):
 
 	async def run(self, circuit: Circuit, data: PassData) -> None:
 		"""Perform the pass's operation, see :class:`BasePass` for more."""
+		import torch
+		from qseed.models import UnitaryLearner
 		start_time = time()
 		print('Setting up, loading model...')
 		start = time() ###### DEBUG

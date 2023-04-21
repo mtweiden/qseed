@@ -1,10 +1,16 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import numpy as np
-from torch import tensor
 from scipy.linalg import expm
 from bqskit.utils.math import unitary_log_no_i, pauli_expansion
 from bqskit.utils.math import dot_product, PauliMatrices
 from bqskit import Circuit
 from bqskit.qis.unitary import UnitaryMatrix
+
+if TYPE_CHECKING:
+    from torch import tensor
 
 from timeit import default_timer as time
 
@@ -81,6 +87,7 @@ def structural_encoding(circuit : Circuit) -> tensor:
         pauli_vector (np.array): Pauli coefficient vector encoding of the
             unitary associated with `circuit`.
     """
+    from torch import tensor
     edge_to_int = {
         (0,1) : 1, (1,2) : 2, (0,2) : 3,
         (1,0) : 1, (2,1) : 2, (2,0) : 3,

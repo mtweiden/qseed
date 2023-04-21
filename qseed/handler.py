@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import logging
 import pickle
-import torch
 from typing import Any, Sequence
 from timeit import default_timer as time
 import numpy as np
@@ -20,8 +19,8 @@ from bqskit.ir.circuit import CircuitGate
 from bqskit.passes import UnfoldPass
 from bqskit.passes import ScanningGateRemovalPass
 
-from qseed.models.unitary_learner import UnitaryLearner
-from qseed.recommender import TopologyAwareRecommenderPass
+
+# from qseed.recommender import TopologyAwareRecommenderPass
 from qseed.qseedpass import QSeedSynthesisPass
 from qseed.recforeach import RecForEachBlockPass
 
@@ -40,6 +39,8 @@ class Handler:
 		self.num_qubits = 3
 		self.topologies = ['a','b','c']
 		self.models, self.states, self.templates = [], [], []
+		# import torch
+		# from qseed.models.unitary_learner import UnitaryLearner
 		for topology in self.topologies:
 #			self.models.append(UnitaryLearner())
 #			path = f'qseed/models/unitary_learner_{topology}.model'
