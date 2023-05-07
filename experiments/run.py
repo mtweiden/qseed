@@ -47,5 +47,5 @@ if __name__ == '__main__':
 	logging.basicConfig(level=logging.INFO, filename=log_name)
 	new_circuit = handler.handle(circuit, data)
 
-	with open(f'experiments/circuits/{handler_type}/{name}.pickle','wb') as f:
-		pickle.dump(new_circuit, f)
+	#with open(f'experiments/circuits/{handler_type}/{name}.pickle','wb') as f:
+	#	pickle.dump(new_circuit, f)
