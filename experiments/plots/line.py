@@ -15,15 +15,6 @@ def extract_name_size(name : str | list[str]) -> tuple[str,int] | list[tuple[str
 		name, size = name.split('.')[0].split('_')
 		return name, int(size)
 
-def make_relative_to_qsearch(qsearch : list, qseed : list) -> tuple[list]:
-	qseed = [a/b for (a,b) in zip(qseed, qsearch)]
-	qsearch = [1.0 for _ in qsearch]
-	return qsearch, qseed
-
-def average_difference(qsearch : list, qseed : list) -> float:
-	diffs = [100*(b-a)/a for (a,b) in zip(qsearch, qseed)]
-	return np.mean(diffs)
-
 def get_color(name : str) -> str:
 	color_maps = {
 		'add' : 'red',
@@ -41,78 +32,57 @@ def get_color(name : str) -> str:
 	}
 	return color_maps[name]
 
+#file_names=['add_17','add_41','add_65','heisenberg_3','heisenberg_4','heisenberg_8','heisenberg_16','heisenberg_32','heisenberg_64','hubbard_4','hubbard_8','hubbard_18','hubbard_50','mult_8','mult_16','mult_32','mult_64','qae_11','qae_33','qae_65','qft_3','qft_4','qft_8','qft_16','qft_32','qft_64','qml_4','qml_25','qml_60','shor_16','shor_32','shor_64','tfim_3','tfim_4','tfim_8','tfim_16','tfim_32','tfim_64']
+file_names=['hubbard_4','hubbard_8','hubbard_18','hubbard_50','qml_4','qml_25','qml_60','shor_16','shor_32','shor_64']
+#file_names=['heisenberg_3','heisenberg_4','heisenberg_8','heisenberg_16','heisenberg_32','heisenberg_64','mult_8','mult_16','mult_32','mult_64','qft_3','qft_4','qft_8','qft_16','qft_32','qft_64','tfim_3','tfim_4','tfim_8','tfim_16','tfim_32','tfim_64']
+
 if __name__ == '__main__':
 	
-	circuits = []
-	qseed_cx, qsearch_cx	   = [], []
-	qseed_calls, qsearch_calls = [], []
-	qseed_time, qsearch_time   = [], []
+	qseed_time, qsearch_time   = {}, {}
 	
 	with open('stats.txt', 'r') as csvfile:
 		csvreader = reader(csvfile)
 		for name, algo, cx, u3, calls, time in csvreader:
 			cx, u3, calls, time = int(cx), int(u3), float(calls), float(time)
-			if name not in circuits:
-				circuits.append(name)
+
+			circ_name, size = name.split('_')[0], int(name.split('_')[1])
+			
+			if name not in file_names:
+				continue
+
+			if circ_name not in qseed_time:
+				qseed_time[circ_name] = []
+			if circ_name not in qsearch_time:
+				qsearch_time[circ_name] = []
+
 			if 'qseed' in algo:
-				qseed_cx.append(cx)
-				qseed_calls.append(calls)
-				qseed_time.append(time)
+				qseed_time[circ_name].append((size, time))
 			if 'qsearch' in algo:
-				qsearch_cx.append(cx)
-				qsearch_calls.append(calls)
-				qsearch_time.append(time)
+				qsearch_time[circ_name].append((size, time))
+
+	fig, ax = plt.subplots()
+	x_axis = np.arange(0, 65)
+
+	for name in qseed_time.keys():
+		sizes   = [s for (s,t) in qseed_time[name]]
+		qseed   = [t for (s,t) in qseed_time[name]]
+		qsearch = [t for (s,t) in qsearch_time[name]]
+
+		diff = [a-b for (a,b) in zip(qsearch, qseed)]
+		ratio = [a/b for (a,b) in zip(qsearch, qseed)]
+		print(name)
+		print(f'sizes:  {str(sizes)}')
+		print(f'diffs:  {str(diff)}')
+		print(f'ratios: {str(ratio)}')
 	
-				
-	fig, ax_time = plt.subplots()
-	x_axis = np.arange(len(circuits))
-	time_diff = average_difference(qsearch_time, qseed_time)
-	cx_diff   = average_difference(qsearch_cx, qseed_cx)
+		#ax.set_yscale('log')
+		#ax.plot(sizes, diff, color=get_color(name), label=f'{name}')
+		ax.set_ylim(0,4)
+		ax.hlines(1.0, xmin=0, xmax=64, linestyle='--', color='grey')
+		ax.plot(sizes, ratio, color=get_color(name), label=f'{name}')
 
-	names = sorted(list(set([n for (n,s) in extract_name_size(circuits)])))
-	sizes = [[] for _ in names]
-	qseed_times = [[] for _ in names]
-	qseed_cxes  = [[] for _ in names]
-	qsearch_times = [[] for _ in names]
-	qsearch_cxes  = [[] for _ in names]
-
-	for i,name in enumerate(names):
-		sizes[i] = [s for (n,s) in extract_name_size(circuits) if n == name]
-		for size_list in sizes:
-			for size in size_list:
-				full_name = f'{name}_{size}'
-				for circ_name, cx, time in zip(circuits, qseed_cx, qseed_time):
-					if circ_name == full_name:
-						if cx not in qseed_cxes[i]:
-							qseed_cxes[i].append(cx)
-						if time not in qseed_times[i]:
-							qseed_times[i].append(time)
-				for circ_name, cx, time in zip(circuits, qsearch_cx, qsearch_time):
-					if circ_name == full_name:
-						if cx not in qsearch_cxes[i]:
-							qsearch_cxes[i].append(cx)
-						if time not in qsearch_times[i]:
-							qsearch_times[i].append(time)
-	
-	for name, size_list, qsearch, qseed in zip(names, sizes, qsearch_times, qseed_times):
-		differences = [a-b for (a,b) in zip(qsearch,qseed)]
-		ax_time.set_yscale('log')
-		ax_time.set_xscale('log')
-		ax_time.plot(size_list, differences, color=get_color(name), label=f'{name}')
-
-#
-#	qsearch_time - ax_time.plot()
-#	qsearch_time_bars = ax_time.bar(x_axis-0.2, qsearch_time, 0.4, label='QSearch')
-#	qseed_time_bars   = ax_time.bar(x_axis+0.2, qseed_time,   0.4, label='QSeed')
-#	ax_time.set_xticks(x_axis, [], rotation=90)
-#	ax_time.set_ylabel('Compilation Time (s)')
-#	ax_time.set_title(f'Average Time Improvement: {time_diff:>0.1f}% - Average CNOT Increase: {-1*cx_diff:>0.1f}%')
-#
-#	qsearch_cx_bars = ax_cx.bar(x_axis-0.2, qsearch_cx, 0.4, label='QSearch', log=absolute_values)
-#	qseed_cx_bars   = ax_cx.bar(x_axis+0.2, qseed_cx,   0.4, label='QSeed',   log=absolute_values)
-#	ax_cx.set_xticks(x_axis, circuits, rotation=90)
-#	ax_cx.set_ylabel('CNOT Gate Count')
-#
+		ax.set_xlabel('Circuit Width (qubits)', fontsize=16)
+		ax.set_ylabel('Speed Up', fontsize=16)
 	plt.legend()
 	plt.show()
 

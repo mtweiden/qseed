@@ -7,41 +7,25 @@ A Python package that implements seeded unitary synthesis.
 This is available for Python 3.8+ on Linux, macOS, and Windows.
 
 ```sh
-pip install qseed
+git clone git@github.com:mtweiden/qseed.git
+cd qseed
+pip install -e .
 ```
 
 ## Basic Usage
-kkk
-...
-
-
-## Import Circuits from External Libraries
-
-BQSKit comes with extension support for Qiskit, TKet, Cirq, and Qutip.
-To convert circuits between those libraries and BQSKit, import any of
-the follow functions from the `bqskit.ext` module:
-
+The easiest way to run QSeed is to call the `experiments/run.py` script. It requires a qasm file as input. Adding the `--qsearch` or `--random` flags will perform synthesis with QSearch or with a random seed recommendation scheme.
 ```
-qiskit_to_bqskit
-qutip_to_bqskit
-cirq_to_bqskit
-pytket_to_bqskit
-bqskit_to_qiskit
-bqskit_to_qutip
-bqskit_to_cirq
-bqskit_to_pytket
+python experiments/run.py qasm/<qasm_family>/mapped-<qasm_file> [--qsearch | --random]
 ```
 
 ## How to Cite
 
-To cite qseed, ...
+To cite qseed, `arXiv link coming soon!`
 
 To cite BQSKit, you can use the [software disclosure](https://www.osti.gov/biblio/1785933).
 
 ## License
-
 ...
 
 ## Copyright
-
 ...
