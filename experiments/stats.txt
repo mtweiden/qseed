@@ -10,6 +10,10 @@ mapped-add_65, qseed, 5953, 4053, 1325, 20.072
 mapped-add_65, qsearch, 5924, 4053, 14144, 86.874
 mapped-add_65, random, 6886, 4053, 1748, 91.148
 mapped-add_65, original, 6786, 4053, 0, 0
+mapped-grover_10, qseed, 12357, 9256, 5940, 56.772
+mapped-grover_10, qsearch, 14236, 9256, 26809, 183.009
+mapped-grover_10, random, 15133, 9256, 3366, 108.732
+mapped-grover_10, original, 13821, 9256, 0, 0
 mapped-heisenberg_3, qseed, 9, 170, 512, 80.4
 mapped-heisenberg_3, qsearch, 9, 170, 586, 91.824
 mapped-heisenberg_3, random, 9, 170, 862, 148.895
