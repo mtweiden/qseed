@@ -21,7 +21,6 @@ from bqskit.passes import UnfoldPass
 from bqskit.passes import ScanningGateRemovalPass
 
 from qseed.models.unitary_learner import UnitaryLearner
-from qseed.recommender import TopologyAwareRecommenderPass
 from qseed.qseedpass import QSeedSynthesisPass
 from qseed.randrecforeach import RandomRecForEachBlockPass
 
