@@ -17,7 +17,7 @@ from bqskit.ir.gates import CNOTGate, SwapGate, U3Gate
 from bqskit.passes.util import RecordStatsPass
 from bqskit.ir import Operation
 from bqskit.ir.circuit import CircuitGate
-from bqskit.passes import QSearchSynthesisPass
+from qseed.qsearch import QSearchSynthesisPass
 from bqskit.passes import UnfoldPass
 
 # from qseed.models.pauli_learner import PauliLearner
