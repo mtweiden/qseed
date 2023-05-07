@@ -17,6 +17,7 @@ The easiest way to run QSeed is to call the `experiments/run.py` script. It requ
 ```
 python experiments/run.py qasm/<qasm_family>/mapped-<qasm_file> [--qsearch | --random]
 ```
+Outputs are stored in the corresponding `experiments/circuits` directory.
 
 ## How to Cite
 
