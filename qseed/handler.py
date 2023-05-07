@@ -8,7 +8,6 @@ from timeit import default_timer as time
 import numpy as np
 
 from bqskit.compiler.passdata import PassData
-from bqskit.passes.control.foreach import ForEachBlockPass
 from bqskit.compiler import CompilationTask, Compiler
 from bqskit.passes import QuickPartitioner
 from bqskit import Circuit
@@ -18,9 +17,8 @@ from bqskit.ir import Operation
 from bqskit.ir.circuit import CircuitGate
 from bqskit.passes import UnfoldPass
 from bqskit.passes import ScanningGateRemovalPass
+from bqskit.passes import SetModelPass
 
-
-# from qseed.recommender import TopologyAwareRecommenderPass
 from qseed.qseedpass import QSeedSynthesisPass
 from qseed.recforeach import RecForEachBlockPass
 
@@ -47,19 +45,21 @@ class Handler:
 #			self.states.append(torch.load(path,map_location='cpu'))
 			with open(f'templates/circuits_{topology}.pickle','rb') as f:
 				self.templates.append(pickle.load(f))
+			#self.templates.append(f'templates/circuits_{topology}.pickle')
 		self.recorder = RecordStatsPass()
 	
 	def _filter(self, circuit : Circuit | Operation | CircuitGate) -> bool:
 		return circuit.num_qudits == self.num_qubits
 
-	def handle(self, circuit: Circuit, data: dict[str, Any] = {}) -> None:
-		start_time = time()
+	def handle(self, circuit: Circuit, data: dict[str, Any] = {}) -> Circuit:
 		start_total_cnots, opt_total_cnots = 0,0
 		start_total_u3s, opt_total_u3s = 0,0
 		
 		_logger.info('QSeed compilation')
 
 		start_total_cnots, start_total_u3s = self._count_gates(circuit)
+
+		assert 'machine_model' in data
 
 		block_passes = [
 			QSeedSynthesisPass(),
@@ -69,6 +69,7 @@ class Handler:
 		task = CompilationTask(
 			circuit, 
 			[
+				SetModelPass(data['machine_model']),
 				QuickPartitioner(block_size=3),
 				RecForEachBlockPass(
 					block_passes,
@@ -89,12 +90,14 @@ class Handler:
 		runtime_str = f'Synthesis run time: {runtime:>0.3f}s'
 		_logger.info(runtime_str)
 		print(runtime_str)
-		print(f'Total time:  {stop_time - start_time:>0.1f}s')
+		print(f'Compilation time:  {stop_time - start_time:>0.3f}s')
 		opt_total_cnots, opt_total_u3s = self._count_gates(new_circuit)
 		inst_calls = self._get_calls(data)
 		start_stats = start_time, start_total_cnots, start_total_u3s
 		stop_stats = stop_time, opt_total_cnots, opt_total_u3s, inst_calls
 		self.record_stats(start_stats, stop_stats)
+
+		return new_circuit
 	
 	def _count_gates(self, circuit : Circuit) -> int:
 		counts = circuit.gate_counts
