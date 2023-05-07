@@ -8,7 +8,6 @@ from timeit import default_timer as time
 import numpy as np
 
 from bqskit.compiler.passdata import PassData
-from bqskit.passes.control.foreach import ForEachBlockPass
 from bqskit.compiler import CompilationTask, Compiler
 from bqskit.passes import QuickPartitioner
 from bqskit import Circuit
@@ -20,8 +19,6 @@ from bqskit.passes import UnfoldPass
 from bqskit.passes import ScanningGateRemovalPass
 from bqskit.passes import SetModelPass
 
-
-# from qseed.recommender import TopologyAwareRecommenderPass
 from qseed.qseedpass import QSeedSynthesisPass
 from qseed.recforeach import RecForEachBlockPass
 
@@ -46,9 +43,9 @@ class Handler:
 #			self.models.append(UnitaryLearner())
 #			path = f'qseed/models/unitary_learner_{topology}.model'
 #			self.states.append(torch.load(path,map_location='cpu'))
-			#with open(f'templates/circuits_{topology}.pickle','rb') as f:
-			#	self.templates.append(pickle.load(f))
-			self.templates.append(f'templates/circuits_{topology}.pickle')
+			with open(f'templates/circuits_{topology}.pickle','rb') as f:
+				self.templates.append(pickle.load(f))
+			#self.templates.append(f'templates/circuits_{topology}.pickle')
 		self.recorder = RecordStatsPass()
 	
 	def _filter(self, circuit : Circuit | Operation | CircuitGate) -> bool:
