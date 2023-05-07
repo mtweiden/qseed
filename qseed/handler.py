@@ -63,7 +63,7 @@ class Handler:
 
 		block_passes = [
 			QSeedSynthesisPass(),
-			ScanningGateRemovalPass(),
+			#ScanningGateRemovalPass(),
 			self.recorder,
 		]
 		task = CompilationTask(
