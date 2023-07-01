@@ -21,7 +21,18 @@ Outputs are stored in the corresponding `experiments/circuits` directory.
 
 ## How to Cite
 
-To cite qseed, `arXiv link coming soon!`
+To cite qseed:
+```
+@misc{
+    weiden2023improving,
+    title={Improving Quantum Circuit Synthesis with Machine Learning}, 
+    author={Mathias Weiden and Ed Younis and Justin Kalloor and John Kubiatowicz and Costin Iancu},
+    year={2023},
+    eprint={2306.05622},
+    archivePrefix={arXiv},
+    primaryClass={quant-ph}
+}
+```
 
 To cite BQSKit, you can use the [software disclosure](https://www.osti.gov/biblio/1785933).
 
