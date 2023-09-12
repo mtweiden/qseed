@@ -1,6 +1,6 @@
 # Quantum Seeded Synthesis BQSKit Pass
 
-A Python package that implements seeded unitary synthesis.
+A Python package that implements machine learning powered seeded quantum circuit synthesis.
 
 ## Installation
 
@@ -13,11 +13,11 @@ pip install -e .
 ```
 
 ## Basic Usage
-The easiest way to run QSeed is to call the `experiments/run.py` script. It requires a qasm file as input. Adding the `--qsearch` or `--random` flags will perform synthesis with QSearch or with a random seed recommendation scheme.
+The easiest way to run QSeed is to call the `run.py` script. It requires a qasm file as input. Adding the `--qsearch` flag will perform synthesis with QSearch.
+```sh
+python run.py qasm/<qasm_family>/mapped-<qasm_file> [--qsearch]
 ```
-python experiments/run.py qasm/<qasm_family>/mapped-<qasm_file> [--qsearch | --random]
-```
-Outputs are stored in the corresponding `experiments/circuits` directory.
+Outputs are stored in the `compiled_circuits` directory.
 
 ## How to Cite
 
@@ -35,9 +35,3 @@ To cite qseed:
 ```
 
 To cite BQSKit, you can use the [software disclosure](https://www.osti.gov/biblio/1785933).
-
-## License
-...
-
-## Copyright
-...
