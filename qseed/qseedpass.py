@@ -1,187 +1,120 @@
-"""This module implements the SynthesisPass abstract class."""
-from __future__ import annotations
-
-from typing import Any
-from typing import Sequence
 import logging
 
-from bqskit.compiler.passdata import PassData
 from bqskit.compiler.basepass import BasePass
 from bqskit.ir.circuit import Circuit
-from bqskit.ir.opt.cost.functions.residuals.hilbertschmidt import (
-    HilbertSchmidtResidualsGenerator,
-)
-from bqskit.ir.opt.cost.generator import CostFunctionGenerator
-from bqskit.passes.search.generator import LayerGenerator
-from qseed.multiseed import MultiSeedLayerGenerator
-from bqskit.passes.search.generators.simple import SimpleLayerGenerator
-from bqskit.passes.search.heuristic import HeuristicFunction
-from bqskit.passes.search.heuristics.astar import AStarHeuristic
-from bqskit.passes.synthesis.qsearch import QSearchSynthesisPass
-from bqskit.qis.unitary.unitarymatrix import UnitaryMatrix
+from bqskit.ir.circuit import CircuitGate
+from bqskit.ir.operation import Operation
+from bqskit.qis.graph import CouplingGraph
+from bqskit.compiler.passdata import PassData
+from bqskit.utils.typing import is_sequence, is_integer
+
+from qseed.recommender import Recommender
+from qseed.tu_recommender import TorchUnitaryRecommender
+from models.unitary_learner import UnitaryLearner
 
 _logger = logging.getLogger(__name__)
 
-class QSeedSynthesisPass(BasePass):
-    """
-    QSeedSynthesisPass class.
 
-    QSeed calls QSearch but can begin synthesis from circuits that are already
-    populated with gates.
-    """
+class QSeedRecommenderPass(BasePass):
+
+    pass_down_block_specific_key_prefix = (
+        'ForEachBlockPass_specific_pass_down_seed_circuits'
+    )
+    """Key for injecting a map from block number to seed circuits."""
+    recommender_state_key = 'recommender_model_state'
 
     def __init__(
         self,
-        seed_circuits: Circuit | Sequence[Circuit] | None = None, 
-        forward_generator: LayerGenerator = SimpleLayerGenerator(),
-        back_step_size: int = 1,
-        heuristic_function: HeuristicFunction = AStarHeuristic(),
-        success_threshold: float = 1e-10,
-        cost: CostFunctionGenerator = HilbertSchmidtResidualsGenerator(),
-        max_layer: int | None = None,
-        store_partial_solutions: bool = False,
-        partials_per_depth: int = 25,
-        instantiate_options: dict[str, Any] = {},
+        seeds_per_rec: int = 3,
+        batch_size: int = 64,
     ) -> None:
         """
-        The constructor for the QSeedSynthesisPass.
+        Construct a QSeedRecommenderPass.
 
-        Args:
-            seed_circuits (Circuit | Sequence[Circuit] | None): A number of 
-                circuits from which synthesis will be started. (Default: None)
+        This pass optimizes Circuits partitioned into 3 qubit blocks.
 
-            forward_generator (LayerGenerator): Defines how synthesis will
-                proceed when adding new gates. (Default: SimpleLayerGenerator)
+        args:
+            seeds_per_rec (int): The number of seeds to recommend per circuit
+                Operation. (Default: 3)
 
-            back_step_size (int): The number of atomic synthesis gate units to
-                remove when going towards the root in the QSearch synthesis
-                tree. (Default: 1)
+            batch_size (int): Max number of operations to pass to a recommender
+                at a time. (Default: 64)
 
-            heuristic_function (HeuristicFunction): The heuristic to guide
-                search.
-
-            success_threshold (float): The distance threshold that
-                determines successful termintation. Measured in cost
-                described by the cost function. (Default: 1e-10)
-
-            cost (CostFunction | None): The cost function that determines
-                distance during synthesis. The goal of this synthesis pass
-                is to implement circuits for the given unitaries that have
-                a cost less than the `success_threshold`.
-                (Default: HSDistance())
-
-            max_layer (int): The maximum number of layers to append without
-                success before termination. If left as None it will default
-                to unlimited. (Default: None)
-
-            store_partial_solutions (bool): Whether to store partial solutions
-                at different depths inside of the data dict. (Default: False)
-
-            partials_per_depth (int): The maximum number of partials
-                to store per search depth. No effect if
-                `store_partial_solutions` is False. (Default: 25)
-
-            instantiate_options (dict[str: Any]): Options passed directly
-                to circuit.instantiate when instantiating circuit
-                templates. (Default: {})
-
-        Raises:
+        raises:
         """
-        # Seeded synthesis parameters
-        if seed_circuits is None:
-            self.seed_circuits = None
-        else:
-            self.seed_circuits = seed_circuits if isinstance(
-                seed_circuits, Sequence,
-            ) else [seed_circuits]
-
-        self.back_step_size = back_step_size
-        self.forward_generator = forward_generator
-        self.back_step_size = back_step_size
-
-        # Regular QSearch parameters
-        self.heuristic_function = heuristic_function
-        self.success_threshold = success_threshold
-        self.cost = cost
-        self.max_layer = max_layer
-        self.store_partial_solutions = store_partial_solutions
-        self.partials_per_depth = partials_per_depth
-        self.instantiate_options = instantiate_options
-
-    def _check_size(self, utry: UnitaryMatrix, seeds : list[Circuit]) -> bool:
-        #return utry.num_qudits == seeds[0].num_qudits
-        return utry.num_qudits == seeds.num_qudits
-
-    async def synthesize(self, utry: UnitaryMatrix, data: PassData) -> Circuit:
-        """
-        Synthesis abstract method to synthesize a UnitaryMatrix into a Circuit.
-
-        Args:
-            utry (UnitaryMatrix): The unitary to synthesize.
-
-            data (Dict[str, Any]): Associated data for the pass.
-                Can be used to provide auxillary information from
-                previous passes. This function should never error based
-                on what is in this dictionary.
-
-        Note:
-            This function should be self-contained and have no side effects.
-        """
-        # Seeds from recommender pass
-        seeds = None
-        if 'recommended_seeds' in data:
-            if self._check_size(utry, data['recommended_seeds'][0]):
-                #seeds = data['recommended_seeds'].pop(0)
-                seeds = data['recommended_seeds']
-            else:
-                raise RuntimeError(
-                    'Recommended seeds are a different size than the target.'
-                )
-        # Manually entered seeds
-        elif 'seeds' in data:
-            if self._check_size(utry, data['seeds']):
-                seeds = data['seeds'] if isinstance(data['seeds'], Sequence) \
-                    else [data['seeds']]
-            else:
-                raise RuntimeError(
-                    'Manually entered seeds are a different size than the '
-                    'target.'
-                )
-        # Default seeds set at construction time
-        else:
-            if self.seed_circuits is not None:
-                if self._check_size(utry, self.seed_circuits):
-                    seeds = self.seed_circuits
-                else:
-                    raise RuntimeError(
-                        'Default seeds are a different size than the target.'
-                    )
-        
-        if seeds is None:
-            raise RuntimeError(
-                'No seeds at contructor time or in `data[seeds]`.'
+        if not is_integer(seeds_per_rec):
+            raise TypeError(
+                f'seeds_per_rec must be an integer, got {type(seeds_per_rec)}.'
             )
+        if seeds_per_rec <= 0:
+            raise ValueError('seeds_per_rec must be positive nonzero.')
 
-        layer_generator = MultiSeedLayerGenerator(
-            seed_circuits=seeds,
-            forward_generator=self.forward_generator,
-            back_step_size=self.back_step_size,
-        )
-
-        seeded_synth = QSearchSynthesisPass(
-            layer_generator=layer_generator,
-            heuristic_function=self.heuristic_function,
-            success_threshold=self.success_threshold,
-            cost=self.cost,
-            max_layer=self.max_layer,
-            store_partial_solutions=self.store_partial_solutions,
-            partials_per_depth=self.partials_per_depth,
-            instantiate_options=self.instantiate_options,
-            store_instantiation_calls=True,
-        )
-        return await seeded_synth.synthesize(utry, data)
+        self.seeds_per_rec = seeds_per_rec
+        self.batch_size = batch_size
 
     async def run(self, circuit: Circuit, data: PassData) -> None:
-        """Perform the pass's operation, see :class:`BasePass` for more."""
-        target_utry = self.get_target(circuit, data)
-        circuit.become(await self.synthesize(target_utry, data))
+        """
+        Run QSeed recommendation on the given `circuit`.
+        """
+        if self.pass_down_block_specific_key_prefix in data:
+            msg = (
+                f'Key "{self.pass_down_block_specific_key_prefix}" already '
+                'found in PassData. It will be overwritten.'
+            )
+            _logger.warning(msg)
+
+        # Load Recommenders from PassData
+        if self.recommender_state_key not in data:
+            raise RuntimeError(
+                'A recommender states must be set in PassData using '
+                f'the key {self.recommender_state_key}.'
+            )
+        states = data[self.recommender_state_key]
+        recommenders = [
+            TorchUnitaryRecommender(
+                UnitaryLearner(), seeds, graph, state,
+            ) for state, seeds, graph in states
+        ]
+        coupling_recommender_map = {
+            rec.coupling_graph: i for (i, rec) in enumerate(recommenders)
+        }
+
+        seed_map = {}
+        # rec_info: (index, encoding)
+        rec_info = [[] for _ in range(len(recommenders))]
+        # Bin blocks by topology
+        topology = data.connectivity
+        for block_num, block in enumerate(circuit):
+            if not isinstance(block.gate, CircuitGate) or block.num_qudits != 3:
+                continue
+            rec_index = self.assign_recommender(
+                block, coupling_recommender_map, topology
+            )
+            if rec_index >= 0:
+                encoding = recommenders[rec_index].encode(block)
+                rec_info[rec_index].append((block_num, encoding))
+
+        # TODO: Batch into `self.batch_size` batches
+        # Call recommenders on batches, fill seed_map
+        for rec_index, rec in enumerate(recommenders):
+            for block_num, encoding in rec_info[rec_index]:
+                seeds = rec.recommend(encoding, self.seeds_per_rec)
+                seed_map[block_num] = seeds
+        data[self.pass_down_block_specific_key_prefix] = seed_map
+
+    def assign_recommender(
+        self,
+        block: Operation,
+        topology_map: dict[CouplingGraph, int],
+        topology: CouplingGraph
+    ) -> int:
+        """Assign a recommender based off topology of subcircuit."""
+        # topology aware case
+        subnum = {
+            block.location[i]: i for i in range(len(block.location))
+        }
+        subgraph = topology.get_subgraph(block.location, subnum)
+        if subgraph not in topology_map:
+            return -1
+        else:
+            return topology_map[subgraph]
