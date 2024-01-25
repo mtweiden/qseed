@@ -14,14 +14,12 @@ from qseed.qsearch import QSearchSynthesisPass
 from bqskit.passes import ScanningGateRemovalPass
 from bqskit.passes import UnfoldPass
 from bqskit.qis.graph import CouplingGraph
-from bqskit.runtime import get_runtime
 
 from qseed.qseedpass import QSeedRecommenderPass
 from qseed.foreach import ForEachBlockPass
-from qseed.cacheloaderpass import CacheLoaderPass
 from qseed.utils.loading import load_recommenders
-from qseed.timepass import TimePass
-from qseed.deletefromdata import DeleteFromDataPass
+from qseed.deletefromdata import DeleteSeedsPass
+
 
 from timeit import default_timer
 
@@ -40,38 +38,42 @@ def main() -> None:
     partitioner = QuickPartitioner()
     qsearch = QSearchSynthesisPass()
     scanning = ScanningGateRemovalPass()
-    foreach = ForEachBlockPass(
-        [qsearch, scanning],
-        replace_filter=gen_less_than_multi(machine)
-    )
     unfold = UnfoldPass()
-    delete = DeleteFromDataPass()
 
     if args.qsearch:
-        workflow = Workflow([machine_setter, partitioner, foreach, delete, unfold])
-    else:
-        cacheloader = CacheLoaderPass('recommenders', load_recommenders)
-        qseed = QSeedRecommenderPass(seeds_per_rec=3, batch_size=32)
-
-        workflow = Workflow(
-            [
-                machine_setter,
-                partitioner,
-                cacheloader,
-                qseed,
-                foreach,
-                delete,
-                unfold
-            ]
+        foreach = ForEachBlockPass(
+            [qsearch, scanning],
+            replace_filter=gen_less_than_multi(machine)
         )
+    else:
+        delete = DeleteSeedsPass()
+        qseed = QSeedRecommenderPass(
+            load_recommenders,
+            seeds_per_rec=3,
+            batch_size=32,
+        )
+        foreach = ForEachBlockPass(
+            [qseed, qsearch, scanning, delete],
+            replace_filter=gen_less_than_multi(machine)
+        )
+    workflow = Workflow([machine_setter, partitioner, foreach, unfold])
 
-    start_time = default_timer()
     print('Compiling...')
-    with Compiler(num_workers=8) as compiler:
-        compiled, data = compiler.compile(circuit, workflow, request_data=True)
-    stop_time = default_timer()
-    duration = stop_time - start_time
-    print(f'Duration: {duration:>0.3f}s')
+    start_time_1 = default_timer()
+    compiler = Compiler(num_workers=4)
+    stop_time_1 = default_timer()
+    duration_1 = stop_time_1 - start_time_1
+    print(f'{duration_1=:>0.3f}')
+    start_time_2 = default_timer()
+    compiled, data = compiler.compile(circuit, workflow, request_data=True)
+    stop_time_2 = default_timer()
+    duration_2 = stop_time_2 - start_time_2
+    print(f'{duration_2=:>0.3f}')
+    start_time_3 = default_timer()
+    compiler.close()
+    stop_time_3 = default_timer()
+    duration_3 = stop_time_3 - start_time_3
+    print(f'{duration_3=:>0.3f}')
 
     inst_calls = [
         d[i]['instantiation_calls']
