@@ -209,7 +209,8 @@ class QSearchSynthesisPass(SynthesisPass):
                         data['psols'] = psols
                     data['instantiation_calls'] = instantiation_calls
                     duration = default_timer() - start_time
-                    print(f"Block duration: {duration:>0.3f}")
+                    print([_ for _ in data.keys()])
+                    print(f"Finished synthesis: {instantiation_calls} {duration:>0.3f}")
                     return circuit
 
                 if dist < best_dist:
@@ -245,7 +246,8 @@ class QSearchSynthesisPass(SynthesisPass):
         data['instantiation_calls'] = instantiation_calls
 
         duration = default_timer() - start_time
-        print(f"Block duration: {duration:>0.3f}")
+        print([_ for _ in data.keys()])
+        print(f"Finished synthesis: {instantiation_calls} {duration:>0.3f}")
         return best_circ
 
     def _get_layer_gen(self, data: PassData) -> LayerGenerator:

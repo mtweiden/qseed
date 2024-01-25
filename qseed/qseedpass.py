@@ -1,3 +1,4 @@
+from typing import Callable
 from typing import Sequence
 
 import logging
@@ -29,14 +30,16 @@ _logger = logging.getLogger(__name__)
 
 class QSeedRecommenderPass(BasePass):
 
-    pass_down_block_specific_key_prefix = (
-        'ForEachBlockPass_specific_pass_down_seed_circuits'
-    )
+    # pass_down_block_specific_key_prefix = (
+    #     'ForEachBlockPass_specific_pass_down_seed_circuits'
+    # )
+    pass_down_block_specific_key_prefix = 'seed_circuits'
     """Key for injecting a map from block number to seed circuits."""
     recommender_state_key = 'recommender_model_state'
 
     def __init__(
         self,
+        load_function: Callable,
         seeds_per_rec: int = 3,
         batch_size: int = 64,
     ) -> None:
@@ -62,6 +65,8 @@ class QSeedRecommenderPass(BasePass):
         self.seeds_per_rec = seeds_per_rec
         self.batch_size = batch_size
         self.seeds = load_seed_circuits()
+
+        self.load_function = load_function
 
     def check_recommenders(
         self,
@@ -97,12 +102,15 @@ class QSeedRecommenderPass(BasePass):
         # Load models directly from worker's local cache
         worker_cache = get_runtime().get_cache()
         if 'recommenders' not in worker_cache:
-            m = (
-                'The `recommenders` must be loaded into the worker\'s '
-                'local cache before this pass can be run.'
-            )
-            raise RuntimeError(m)
-        recommenders = worker_cache['recommenders']
+            recommenders = self.load_function()
+            worker_cache['recommenders'] = recommenders
+            # m = (
+            #     'The `recommenders` must be loaded into the worker\'s '
+            #     'local cache before this pass can be run.'
+            # )
+            # raise RuntimeError(m)
+        else:
+            recommenders = worker_cache['recommenders']
         self.check_recommenders(recommenders)
 
         coupling_recommender_map = {
@@ -110,56 +118,31 @@ class QSeedRecommenderPass(BasePass):
         }
 
         # TODO: Batch into `self.batch_size` batches
-        seed_map = {}
         topology = data.connectivity
-        op_by_recommender = [[] for _ in range(len(recommenders))]
-        block_num_by_recommender = [[] for _ in range(len(recommenders))]
-        for block_num, block in enumerate(circuit):
-            if not isinstance(block.gate, CircuitGate) or block.num_qudits != 3:
-                continue
-            rec_index = self.assign_recommender(
-                block, coupling_recommender_map, topology
-            )
-            if rec_index >= 0:
-                op_by_recommender[rec_index].append(block)
-                block_num_by_recommender[rec_index].append(block_num)
+        if circuit.num_qudits != 3:
+            return
+        rec_index = self.assign_recommender(
+            circuit, coupling_recommender_map, topology
+        )
+        if rec_index < 0:
+            return
 
-        for rec_num in range(len(recommenders)):
-            operations = op_by_recommender[rec_num]
-            num_batches = int(ceil(len(operations) / self.batch_size))
-            batched_seeds = []
-            for batch in range(num_batches):
-                start = batch * self.batch_size
-                stop = (batch + 1) * self.batch_size
-                batched_operations = operations[start:stop]
-                batched_seeds.extend(
-                    recommenders[rec_num].batched_recommend(
-                        batched_operations, self.seeds_per_rec
-                    )
-                )
-            for block_num, indices in zip(
-                block_num_by_recommender[rec_num], batched_seeds
-            ):
-                seed_map[block_num] = [
-                    self.seeds[rec_num][i] for i in indices
-                ]
-        data[self.pass_down_block_specific_key_prefix] = seed_map
+        seeds = recommenders[rec_index].recommend(circuit, self.seeds_per_rec)
+        data[self.pass_down_block_specific_key_prefix] = seeds
         duration = default_timer() - start_time
-        print(f'Finished recommending: {duration}s')
+        print(f'Finished recommending: {duration:>0.3f}s')
 
     def assign_recommender(
         self,
-        block: Operation,
+        circuit: Circuit,
         topology_map: dict[CouplingGraph, int],
         topology: CouplingGraph
     ) -> int:
         """Assign a recommender based off topology of subcircuit."""
         # topology aware case
-        subnum = {
-            block.location[i]: i for i in range(len(block.location))
-        }
-        subgraph = topology.get_subgraph(block.location, subnum)
-        if subgraph not in topology_map:
+        location = [_ for _ in range(circuit.num_qudits)]
+        graph = topology.get_subgraph(location)
+        if graph not in topology_map:
             return -1
         else:
-            return topology_map[subgraph]
+            return topology_map[graph]
