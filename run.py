@@ -1,6 +1,4 @@
 from argparse import ArgumentParser
-import torch
-import torch.nn as nn
 import pickle
 import numpy as np
 
@@ -11,73 +9,21 @@ from bqskit.compiler import Workflow
 from bqskit.passes import SetModelPass
 from bqskit.passes import QuickPartitioner
 from bqskit.passes.control.foreach import gen_less_than_multi
-from bqskit.passes import QSearchSynthesisPass
+# from bqskit.passes import QSearchSynthesisPass
+from qseed.qsearch import QSearchSynthesisPass
 from bqskit.passes import ScanningGateRemovalPass
 from bqskit.passes import UnfoldPass
-from bqskit.passes import UpdateDataPass
 from bqskit.qis.graph import CouplingGraph
+from bqskit.runtime import get_runtime
 
 from qseed.qseedpass import QSeedRecommenderPass
-from qseed.tu_recommender import TorchUnitaryRecommender
 from qseed.foreach import ForEachBlockPass
+from qseed.cacheloaderpass import CacheLoaderPass
+from qseed.utils.loading import load_recommenders
+from qseed.timepass import TimePass
+from qseed.deletefromdata import DeleteFromDataPass
 
-from models.unitary_learner import UnitaryLearner
-
-from utils.couplings import get_linear_couplings
-
-# Debug
-from utils.debug import DebugRecommender
-
-
-def load_recommender_models() -> list[nn.Module]:
-    models = []
-    for topology_code in ['a', 'b', 'c']:
-        path = f'models/unitary_learner_{topology_code}.model'
-        learner = UnitaryLearner()
-        learner.load_state_dict(torch.load(path))
-        models.append(learner)
-    return models
-
-
-def load_recommender_states() -> list[dict]:
-    states = []
-    for topology_code in ['a', 'b', 'c']:
-        path = f'models/unitary_learner_{topology_code}.model'
-        states.append(path)
-    return states
-
-
-def load_seed_circuits() -> list[list[Circuit]]:
-    seed_circuits = []
-    for topology_code in ['a', 'b', 'c']:
-        path = f'seeds/seed_circuits_{topology_code}.pkl'
-        with open(path, 'rb') as f:
-            seeds = pickle.load(f)
-        seed_circuits.append(seeds)
-    return seed_circuits
-
-
-def load_coupling_graphs() -> list[CouplingGraph]:
-    couplings = get_linear_couplings()
-    return [CouplingGraph(coupling) for coupling in couplings]
-
-
-def load_recommenders(
-    recommender_models: list[nn.Module],
-    seed_circuits: list[Circuit],
-    coupling_graphs: list[CouplingGraph],
-) -> list[TorchUnitaryRecommender]:
-    recommenders = []
-    for model, seeds, coupling in zip(
-        recommender_models, seed_circuits, coupling_graphs
-    ):
-        #recommender = DebugRecommender(seeds, coupling)
-        recommender = TorchUnitaryRecommender(
-            model, seeds, coupling
-        )
-        recommenders.append(recommender)
-    return recommenders
-
+from timeit import default_timer
 
 def main() -> None:
     parser = ArgumentParser()
@@ -88,7 +34,7 @@ def main() -> None:
     circuit = Circuit.from_file(args.qasm_file)
 
     n = int(np.ceil(np.sqrt(circuit.num_qudits)))
-    topology = CouplingGraph.grid(n, n)
+    topology = [_ for _ in CouplingGraph.grid(n, n)]
     machine = MachineModel(circuit.num_qudits, topology)
     machine_setter = SetModelPass(machine)
     partitioner = QuickPartitioner()
@@ -99,42 +45,41 @@ def main() -> None:
         replace_filter=gen_less_than_multi(machine)
     )
     unfold = UnfoldPass()
+    delete = DeleteFromDataPass()
 
     if args.qsearch:
-        workflow = Workflow([machine_setter, partitioner, foreach, unfold])
+        workflow = Workflow([machine_setter, partitioner, foreach, delete, unfold])
     else:
-        recommender_states = load_recommender_states()
-        seed_circuits = load_seed_circuits()
-        coupling_graphs = load_coupling_graphs()
-
-        assert len(recommender_states) == len(seed_circuits)
-        assert len(seed_circuits) == len(coupling_graphs)
-
-        rec_states = [
-            (s, c, g) for (s, c, g) in zip(
-                recommender_states, seed_circuits, coupling_graphs
-            )
-        ]
-
-        rec_setter = UpdateDataPass(
-            QSeedRecommenderPass.recommender_state_key,
-            rec_states,
-        )
-
-        qseed = QSeedRecommenderPass(
-            seeds_per_rec=3,
-            batch_size=64
-        )
-        #import pdb; pdb.set_trace()
+        cacheloader = CacheLoaderPass('recommenders', load_recommenders)
+        qseed = QSeedRecommenderPass(seeds_per_rec=3, batch_size=32)
 
         workflow = Workflow(
-            [machine_setter, partitioner, rec_setter, qseed, foreach, unfold]
+            [
+                machine_setter,
+                partitioner,
+                cacheloader,
+                qseed,
+                foreach,
+                delete,
+                unfold
+            ]
         )
 
+    start_time = default_timer()
     print('Compiling...')
-    #import pdb; pdb.set_trace()
-    with Compiler() as compiler:
-        compiled = compiler.compile(circuit, workflow)
+    with Compiler(num_workers=8) as compiler:
+        compiled, data = compiler.compile(circuit, workflow, request_data=True)
+    stop_time = default_timer()
+    duration = stop_time - start_time
+    print(f'Duration: {duration:>0.3f}s')
+
+    inst_calls = [
+        d[i]['instantiation_calls']
+        if 'instantiation_calls' in d[i] else 0
+        for d in data['ForEachBlockPass_data']
+        for i in range(len(d))
+    ]
+    print(f'Mean inst calls: {np.mean(inst_calls)}')
 
     if '/' in args.qasm_file:
         input_name = args.qasm_file.split('/')[-1]

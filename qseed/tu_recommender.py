@@ -19,12 +19,13 @@ class TorchUnitaryRecommender(Recommender):
     """
     A recommender that uses a PyTorch nn.Module to analyze unitaries.
     """
+
     def __init__(
         self,
         recommender_model: nn.Module,
         seed_circuits: Sequence[Circuit],
         coupling_graph: CouplingGraph | None = None,
-        recommender_state: dict[str, Tensor] | None = None,
+        recommender_model_state: dict[str, Tensor] | None = None,
     ) -> None:
         """
         Constructor for the TorchUnitaryRecommender.
@@ -46,7 +47,7 @@ class TorchUnitaryRecommender(Recommender):
                 must conform to this CouplingGraph. Otherwise, any qubit
                 iteractions are allowed. (Default: None)
 
-            recommender_state (dict[str, Tensor] | None): The optional
+            recommender_model_state (dict[str, Tensor] | None): The optional
                 `state_dict` for the `recommender_model`. If not provided,
                 then it is assumed that the state has already been loaded.
                 (Default: None)
@@ -58,8 +59,6 @@ class TorchUnitaryRecommender(Recommender):
             ValueError: If a coupling_graph is provided but one or more of
                 the `seed_circuits` does not conform.
         """
-        #import pdb; pdb.set_trace()
-        super().__init__(coupling_graph)
         # Check that each seed circuit matches coupling_graph
         if coupling_graph and not all(
             edge in coupling_graph for s in seed_circuits
@@ -83,20 +82,23 @@ class TorchUnitaryRecommender(Recommender):
                 'cannot ensure its compatibility with `seed_circuits`.'
             )
 
+        self.coupling_graph = coupling_graph
         if self.coupling_graph is None:
             num_q = max(s.num_qudits for s in seed_circuits)
             self.coupling_graph = CouplingGraph.all_to_all(num_q)
 
         self.seed_circuits = seed_circuits
-        self.recommender = recommender_model
+        self.recommender_model = recommender_model
         # Load recommender model state
-        if recommender_state is not None:
-            if isinstance(recommender_state, str):
-                recommender_state = torch.load(
-                    recommender_state, map_location='cpu'
+        if recommender_model_state is not None:
+            if isinstance(recommender_model_state, str):
+                recommender_model_state = torch.load(
+                    recommender_model_state, map_location='cpu'
                 )
-            self.recommender.load_state_dict(recommender_state, strict=True)
-        self.recommender.eval()
+            self.recommender.load_state_dict(
+                recommender_model_state, strict=True
+            )
+        self.recommender_model.eval()
 
     def encode(self, operation: Operation) -> Any:
         """
@@ -113,18 +115,19 @@ class TorchUnitaryRecommender(Recommender):
         real_x = np.real(unitary).flatten()
         imag_x = np.imag(unitary).flatten()
         x = np.hstack([real_x, imag_x])
+        x = Tensor(x)
         return x
 
-    def recommend(
+    def _recommend(
         self,
-        encoding: Any,
+        encoding: Tensor,
         seeds_per_rec: int = 1
     ) -> list[Circuit]:
         """
         Recommend seed circuits based off Tensor encoding of an operation.
 
         args:
-            encoding (Any): A Tensor encoding of an operation.
+            encoding (Tensor): A Tensor encoding of an operation.
 
             seeds_per_rec (int): The number of seeds to recommend per call to
                 `self.recommend`.
@@ -133,7 +136,47 @@ class TorchUnitaryRecommender(Recommender):
             (list[Circuit]): A list of seed circuits taken from
                 `self.seed_circuits`.
         """
-        encoding = Tensor(encoding).float()
-        logits = self.recommender(encoding)
+        encoding = encoding.float()
+        logits = self.recommender_model(encoding)
         _, indices = topk(logits, seeds_per_rec, dim=-1)
         return [self.seed_circuits[i] for i in indices]
+
+    def batched_recommend(
+        self,
+        batched_operations: Sequence[Operation],
+        seeds_per_rec: int = 1,
+    ) -> Sequence[Sequence[Circuit]]:
+        batch_size = len(batched_operations)
+        batched_encodings = torch.stack(
+            [self.encode(op) for op in batched_operations]
+        )
+        batched_logits = self.recommender_model(batched_encodings)
+        _, indices = topk(batched_logits, seeds_per_rec, dim=-1)
+        return indices.tolist()
+        # batched_seeds = []
+        # for b in range(batch_size):
+        #    seeds = [self.seed_circuits[i] for i in indices[b]]
+        #    batched_seeds.append(seeds)
+        # return batched_seeds
+
+    def recommend(
+        self,
+        operation: Operation,
+        seeds_per_rec: int = 1
+    ) -> list[Circuit]:
+        """
+        Recommend seed circuits based off Tensor encoding of an operation.
+
+        args:
+            operation (Operation): The operation for which to predict seeds.
+
+            seeds_per_rec (int): The number of seeds to recommend per call to
+                `self.recommend`.
+
+        returns:
+            (list[Circuit]): A list of seed circuits taken from
+                `self.seed_circuits`.
+        """
+        encoding = self.encode(operation)
+        seeds = self._recommend(encoding)
+        return seeds
