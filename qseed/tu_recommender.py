@@ -7,7 +7,7 @@ from typing import Any, Sequence
 
 from bqskit import Circuit
 from bqskit.qis.graph import CouplingGraph
-from bqskit.ir import Operation
+from bqskit.ir import Circuit
 from torch import Tensor, topk
 
 from qseed.recommender import Recommender
@@ -95,23 +95,23 @@ class TorchUnitaryRecommender(Recommender):
                 recommender_model_state = torch.load(
                     recommender_model_state, map_location='cpu'
                 )
-            self.recommender.load_state_dict(
+            self.recommender_model.load_state_dict(
                 recommender_model_state, strict=True
             )
         self.recommender_model.eval()
 
-    def encode(self, operation: Operation) -> Any:
+    def encode(self, circuit: Circuit) -> Any:
         """
-        Encode an operation's unitary as a PyTorch Tensor.
+        Encode a circuit's unitary as a PyTorch Tensor.
 
         args:
-            operation (Operation): The operation to be encoded.
+            circuit (Circuit): The circuit to be encoded.
 
         returns:
             (Tensor): A flattened Tensor view of the unitary. Real components
                 are stacked on top of imaginary ones.
         """
-        unitary = operation.get_unitary().numpy
+        unitary = circuit.get_unitary().numpy
         real_x = np.real(unitary).flatten()
         imag_x = np.imag(unitary).flatten()
         x = np.hstack([real_x, imag_x])
@@ -124,10 +124,10 @@ class TorchUnitaryRecommender(Recommender):
         seeds_per_rec: int = 1
     ) -> list[Circuit]:
         """
-        Recommend seed circuits based off Tensor encoding of an operation.
+        Recommend seed circuits based off Tensor encoding of a circuit.
 
         args:
-            encoding (Tensor): A Tensor encoding of an operation.
+            encoding (Tensor): A Tensor encoding of a circuit.
 
             seeds_per_rec (int): The number of seeds to recommend per call to
                 `self.recommend`.
@@ -143,16 +143,17 @@ class TorchUnitaryRecommender(Recommender):
 
     def batched_recommend(
         self,
-        batched_operations: Sequence[Operation],
+        batched_circuits: Sequence[Circuit],
         seeds_per_rec: int = 1,
     ) -> Sequence[Sequence[Circuit]]:
-        batch_size = len(batched_operations)
+        batch_size = len(batched_circuits)
         batched_encodings = torch.stack(
-            [self.encode(op) for op in batched_operations]
+            [self.encode(op) for op in batched_circuits]
         )
         batched_logits = self.recommender_model(batched_encodings)
         _, indices = topk(batched_logits, seeds_per_rec, dim=-1)
-        return indices.tolist()
+        indices = indices.tolist()
+        return [self.seed_circuits[i] for i in indices]
         # batched_seeds = []
         # for b in range(batch_size):
         #    seeds = [self.seed_circuits[i] for i in indices[b]]
@@ -161,14 +162,14 @@ class TorchUnitaryRecommender(Recommender):
 
     def recommend(
         self,
-        operation: Operation,
+        circuit: Circuit,
         seeds_per_rec: int = 1
     ) -> list[Circuit]:
         """
-        Recommend seed circuits based off Tensor encoding of an operation.
+        Recommend seed circuits based off Tensor encoding of a circuit.
 
         args:
-            operation (Operation): The operation for which to predict seeds.
+            circuit (Circuit): The circuit for which to predict seeds.
 
             seeds_per_rec (int): The number of seeds to recommend per call to
                 `self.recommend`.
@@ -177,6 +178,6 @@ class TorchUnitaryRecommender(Recommender):
             (list[Circuit]): A list of seed circuits taken from
                 `self.seed_circuits`.
         """
-        encoding = self.encode(operation)
-        seeds = self._recommend(encoding)
+        encoding = self.encode(circuit)
+        seeds = self._recommend(encoding, seeds_per_rec)
         return seeds

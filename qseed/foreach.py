@@ -223,7 +223,6 @@ class ForEachBlockPass(BasePass):
             subcircuits,
             block_datas,
         )
-        print('HERE')
 
         # Unpack results
         completed_subcircuits, completed_block_datas = zip(*results)

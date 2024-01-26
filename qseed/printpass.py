@@ -10,12 +10,10 @@ from timeit import default_timer
 _logger = logging.getLogger(__name__)
 
 
-class TimePass(BasePass):
+class PrintPass(BasePass):
+
+    def __init__(self, message: str) -> None:
+        self.msg = message
 
     async def run(self, circuit: Circuit, data: PassData) -> None:
-        """Run CacheLoaderPass."""
-        if 'time' not in data:
-            data['time'] = default_timer()
-        else:
-            duration = default_timer() - data['time']
-            print(f'TIMEPASS: {duration:>0.3f}s')
+        print(self.msg)

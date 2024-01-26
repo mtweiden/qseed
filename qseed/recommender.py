@@ -3,17 +3,16 @@ import abc
 from typing import Any
 
 from bqskit import Circuit
-from bqskit.ir import Operation
 
 
 class Recommender(abc.ABC):
     """
-    An abstract class that encodes operations and recommends seed circuits.
+    An abstract class that encodes circuits and recommends seed circuits.
     """
     @abc.abstractmethod
-    def encode(self, operation: Operation) -> Any:
+    def encode(self, circuit: Circuit) -> Any:
         """
-        Encode an operation for seed circuit recommendation.
+        Encode an circuit for seed recommendation.
         """
 
     @abc.abstractmethod
@@ -23,15 +22,15 @@ class Recommender(abc.ABC):
         seeds_per_rec: int = 1
     ) -> list[Circuit]:
         """
-        Recommend a list of seeds given an encoding of an operation.
+        Recommend a list of seeds given an encoding of a circuit.
         """
 
     @abc.abstractmethod
     def recommend(
         self,
-        operation: Operation,
+        circuit: Circuit,
         seeds_per_rec: int = 1
     ) -> list[Circuit]:
         """
-        Recommend a list of seeds given an encoding of an operation.
+        Recommend a list of seeds given an encoding of a circuit.
         """

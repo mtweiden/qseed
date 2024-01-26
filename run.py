@@ -9,16 +9,17 @@ from bqskit.compiler import Workflow
 from bqskit.passes import SetModelPass
 from bqskit.passes import QuickPartitioner
 from bqskit.passes.control.foreach import gen_less_than_multi
-# from bqskit.passes import QSearchSynthesisPass
 from qseed.qsearch import QSearchSynthesisPass
 from bqskit.passes import ScanningGateRemovalPass
-from bqskit.passes import UnfoldPass
 from bqskit.qis.graph import CouplingGraph
 
 from qseed.qseedpass import QSeedRecommenderPass
 from qseed.foreach import ForEachBlockPass
 from qseed.utils.loading import load_recommenders
 from qseed.deletefromdata import DeleteSeedsPass
+from qseed.unfold import UnfoldPass
+from qseed.timepass import TimePass
+from qseed.printpass import PrintPass
 
 
 from timeit import default_timer
@@ -40,23 +41,39 @@ def main() -> None:
     scanning = ScanningGateRemovalPass()
     unfold = UnfoldPass()
 
+    tp = TimePass()
     if args.qsearch:
         foreach = ForEachBlockPass(
             [qsearch, scanning],
             replace_filter=gen_less_than_multi(machine)
         )
     else:
-        delete = DeleteSeedsPass()
         qseed = QSeedRecommenderPass(
             load_recommenders,
             seeds_per_rec=3,
             batch_size=32,
         )
         foreach = ForEachBlockPass(
-            [qseed, qsearch, scanning, delete],
+            [qseed, qsearch, scanning],
             replace_filter=gen_less_than_multi(machine)
         )
-    workflow = Workflow([machine_setter, partitioner, foreach, unfold])
+    workflow = Workflow(
+        [
+            tp, 
+            PrintPass('Machine Setter'),
+            machine_setter,
+            tp,
+            PrintPass('Partitioner'),
+            partitioner,
+            tp,
+            PrintPass('ForEach'),
+            foreach,
+            tp,
+            PrintPass('Unfold'),
+            unfold,
+            tp,
+        ]
+    )
 
     print('Compiling...')
     start_time_1 = default_timer()
@@ -65,7 +82,8 @@ def main() -> None:
     duration_1 = stop_time_1 - start_time_1
     print(f'{duration_1=:>0.3f}')
     start_time_2 = default_timer()
-    compiled, data = compiler.compile(circuit, workflow, request_data=True)
+    # compiled, data = compiler.compile(circuit, workflow, request_data=True)
+    compiled = compiler.compile(circuit, workflow)
     stop_time_2 = default_timer()
     duration_2 = stop_time_2 - start_time_2
     print(f'{duration_2=:>0.3f}')
@@ -75,13 +93,13 @@ def main() -> None:
     duration_3 = stop_time_3 - start_time_3
     print(f'{duration_3=:>0.3f}')
 
-    inst_calls = [
-        d[i]['instantiation_calls']
-        if 'instantiation_calls' in d[i] else 0
-        for d in data['ForEachBlockPass_data']
-        for i in range(len(d))
-    ]
-    print(f'Mean inst calls: {np.mean(inst_calls)}')
+    # inst_calls = [
+    #     d[i]['instantiation_calls']
+    #     if 'instantiation_calls' in d[i] else 0
+    #     for d in data['ForEachBlockPass_data']
+    #     for i in range(len(d))
+    # ]
+    # print(f'Mean inst calls: {np.mean(inst_calls)}')
 
     if '/' in args.qasm_file:
         input_name = args.qasm_file.split('/')[-1]

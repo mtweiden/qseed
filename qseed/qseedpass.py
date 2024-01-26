@@ -64,7 +64,6 @@ class QSeedRecommenderPass(BasePass):
 
         self.seeds_per_rec = seeds_per_rec
         self.batch_size = batch_size
-        self.seeds = load_seed_circuits()
 
         self.load_function = load_function
 
@@ -128,9 +127,9 @@ class QSeedRecommenderPass(BasePass):
             return
 
         seeds = recommenders[rec_index].recommend(circuit, self.seeds_per_rec)
-        data[self.pass_down_block_specific_key_prefix] = seeds
+        data['seed_circuits'] = seeds
         duration = default_timer() - start_time
-        print(f'Finished recommending: {duration:>0.3f}s')
+        # print(f'Finished recommending: {duration:>0.3f}s')
 
     def assign_recommender(
         self,

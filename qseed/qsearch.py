@@ -209,8 +209,7 @@ class QSearchSynthesisPass(SynthesisPass):
                         data['psols'] = psols
                     data['instantiation_calls'] = instantiation_calls
                     duration = default_timer() - start_time
-                    print([_ for _ in data.keys()])
-                    print(f"Finished synthesis: {instantiation_calls} {duration:>0.3f}")
+                    # print(f"Finished synthesis: {instantiation_calls} {duration:>0.3f}")
                     return circuit
 
                 if dist < best_dist:
@@ -246,8 +245,7 @@ class QSearchSynthesisPass(SynthesisPass):
         data['instantiation_calls'] = instantiation_calls
 
         duration = default_timer() - start_time
-        print([_ for _ in data.keys()])
-        print(f"Finished synthesis: {instantiation_calls} {duration:>0.3f}")
+        # print(f"Finished synthesis: {instantiation_calls} {duration:>0.3f}")
         return best_circ
 
     def _get_layer_gen(self, data: PassData) -> LayerGenerator:
@@ -267,8 +265,12 @@ class QSearchSynthesisPass(SynthesisPass):
         # Priority given to seeded synthesis
         foreach_seed_key = 'ForEachBlockPass_specific_pass_down_seed_circuits'
         if foreach_seed_key in data:
-            layer_gen = SeedLayerGenerator(data[foreach_seed_key], layer_gen)
+            seeds = data[foreach_seed_key].copy()
+            del data[foreach_seed_key]
+            layer_gen = SeedLayerGenerator(seeds, layer_gen)
         elif 'seed_circuits' in data:
-            layer_gen = SeedLayerGenerator(data['seed_circuits'], layer_gen)
+            seeds = data['seed_circuits'].copy()
+            del data['seed_circuits']
+            layer_gen = SeedLayerGenerator(seeds, layer_gen)
 
         return layer_gen
