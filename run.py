@@ -40,8 +40,8 @@ def main() -> None:
     qsearch = QSearchSynthesisPass()
     scanning = ScanningGateRemovalPass()
     unfold = UnfoldPass()
-
     tp = TimePass()
+
     if args.qsearch:
         foreach = ForEachBlockPass(
             [qsearch, scanning],
@@ -59,19 +59,15 @@ def main() -> None:
         )
     workflow = Workflow(
         [
-            tp, 
-            PrintPass('Machine Setter'),
+            # tp, 
             machine_setter,
-            tp,
-            PrintPass('Partitioner'),
+            # tp, 
             partitioner,
-            tp,
-            PrintPass('ForEach'),
+            # tp, 
             foreach,
-            tp,
-            PrintPass('Unfold'),
+            # tp, 
             unfold,
-            tp,
+            # tp, 
         ]
     )
 
@@ -82,8 +78,8 @@ def main() -> None:
     duration_1 = stop_time_1 - start_time_1
     print(f'{duration_1=:>0.3f}')
     start_time_2 = default_timer()
-    # compiled, data = compiler.compile(circuit, workflow, request_data=True)
-    compiled = compiler.compile(circuit, workflow)
+    compiled, data = compiler.compile(circuit, workflow, request_data=True)
+    # compiled = compiler.compile(circuit, workflow)
     stop_time_2 = default_timer()
     duration_2 = stop_time_2 - start_time_2
     print(f'{duration_2=:>0.3f}')
@@ -93,13 +89,13 @@ def main() -> None:
     duration_3 = stop_time_3 - start_time_3
     print(f'{duration_3=:>0.3f}')
 
-    # inst_calls = [
-    #     d[i]['instantiation_calls']
-    #     if 'instantiation_calls' in d[i] else 0
-    #     for d in data['ForEachBlockPass_data']
-    #     for i in range(len(d))
-    # ]
-    # print(f'Mean inst calls: {np.mean(inst_calls)}')
+    inst_calls = [
+        d[i]['instantiation_calls']
+        if 'instantiation_calls' in d[i] else 0
+        for d in data['ForEachBlockPass_data']
+        for i in range(len(d))
+    ]
+    print(f'Mean inst calls: {np.mean(inst_calls)}')
 
     if '/' in args.qasm_file:
         input_name = args.qasm_file.split('/')[-1]

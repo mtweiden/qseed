@@ -48,5 +48,4 @@ def load_recommenders() -> list[TorchUnitaryRecommender]:
             model, seeds, coupling
         )
         recommenders.append(recommender)
-    print('Loaded recommenders.')
     return recommenders

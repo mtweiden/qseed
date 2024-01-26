@@ -21,8 +21,6 @@ from bqskit.ir.operation import Operation
 from bqskit.ir.point import CircuitPoint
 from bqskit.runtime import get_runtime
 
-from timeit import default_timer
-
 _logger = logging.getLogger(__name__)
 
 
@@ -148,7 +146,6 @@ class ForEachBlockPass(BasePass):
     async def run(self, circuit: Circuit, data: PassData) -> None:
         """Perform the pass's operation, see :class:`BasePass` for more."""
         # Get the callable replacement filter
-        start_time = default_timer()
         if isinstance(self.replace_filter, str):
             method = self.replace_filter
             replace_filter = gen_replace_filter(method, data.model)
@@ -214,8 +211,6 @@ class ForEachBlockPass(BasePass):
             subcircuits.append(subcircuit)
             block_datas.append(block_data)
 
-        print(f'setup: {default_timer() - start_time:>0.3f}s')
-        start_time = default_timer()
         # Do the work
         results = await get_runtime().map(
             _sub_do_work,
@@ -264,8 +259,6 @@ class ForEachBlockPass(BasePass):
         if self.calculate_error_bound:
             data.error = (1 - ((1 - data.error) * (1 - error_sum)))
             _logger.debug(f'New circuit error is {data.error}.')
-
-        print(f'work: {default_timer() - start_time:>0.3f}s')
 
 
 def default_collection_filter(op: Operation) -> bool:
