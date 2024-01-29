@@ -12,6 +12,8 @@ from bqskit.passes.control.foreach import gen_less_than_multi
 from qseed.qsearch import QSearchSynthesisPass
 from bqskit.passes import ScanningGateRemovalPass
 from bqskit.qis.graph import CouplingGraph
+from bqskit.ir.gates import CNOTGate
+from bqskit.ir.gates import SwapGate
 
 from qseed.qseedpass import QSeedRecommenderPass
 from qseed.foreach import ForEachBlockPass
@@ -60,20 +62,26 @@ def main() -> None:
     workflow = Workflow(
         [
             # tp, 
+            # PrintPass('Machine Setter'),
             machine_setter,
             # tp, 
+            # PrintPass('Partitioner'),
             partitioner,
             # tp, 
+            # PrintPass('ForEach'),
             foreach,
             # tp, 
+            # PrintPass('Unfold'),
             unfold,
             # tp, 
         ]
     )
 
-    print('Compiling...')
+    algo = 'QSearch' if args.qsearch else 'QSeed'
+    title = f'Compiling with {algo}...'
+    print(title)
     start_time_1 = default_timer()
-    compiler = Compiler(num_workers=4)
+    compiler = Compiler(num_workers=8)
     stop_time_1 = default_timer()
     duration_1 = stop_time_1 - start_time_1
     print(f'{duration_1=:>0.3f}')
@@ -95,7 +103,14 @@ def main() -> None:
         for d in data['ForEachBlockPass_data']
         for i in range(len(d))
     ]
-    print(f'Mean inst calls: {np.mean(inst_calls)}')
+    counts = compiled.gate_counts
+    print(f'Mean inst calls: {np.mean(inst_calls):>0.3f}')
+    print(f'Gate counts: {counts}')
+    cx_count = counts[CNOTGate()]
+    if SwapGate() in counts:
+        cx_count += 3 * counts[SwapGate()]
+    print(f'CXGates: {cx_count}')
+    print(f'Total Duration: {stop_time_3 - start_time_1:>0.3f}s\n')
 
     if '/' in args.qasm_file:
         input_name = args.qasm_file.split('/')[-1]

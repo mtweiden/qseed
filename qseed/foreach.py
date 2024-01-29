@@ -195,6 +195,7 @@ class ForEachBlockPass(BasePass):
 
             # Form Subdata
             block_data: PassData = PassData(subcircuit)
+            block_data['BLOCK_NUMBER'] = i
             block_data['subnumbering'] = subnumbering
             block_data['model'] = submodel
             block_data['point'] = CircuitPoint(cycle, op.location[0])

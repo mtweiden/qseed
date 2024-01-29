@@ -199,8 +199,14 @@ class QSearchSynthesisPass(SynthesisPass):
             )
             instantiation_calls += 1
 
+            block_num = data['BLOCK_NUMBER']
             # Evaluate successors
             for circuit in circuits:
+                # if instantiation_calls >= 10:
+                    # duration = default_timer() - start_time
+                    # print(f"SLOW WIP {block_num}: {instantiation_calls} {duration:>0.3f}")
+                    # print(to_seq(circuit))
+                    # print(circuit.gate_counts)
                 dist = self.cost.calc_cost(circuit, utry)
 
                 if dist < self.success_threshold:
@@ -274,3 +280,10 @@ class QSearchSynthesisPass(SynthesisPass):
             layer_gen = SeedLayerGenerator(seeds, layer_gen)
 
         return layer_gen
+
+def to_seq(circuit: Circuit) -> list[tuple[int, int]]:
+    seq = []
+    for op in circuit:
+        if op.num_qudits >= 2:
+            seq.append(tuple(op.location))
+    return seq
